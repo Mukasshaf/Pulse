@@ -24,7 +24,7 @@ WESAD (Schmidt et al., 2018) — 15 subjects (S2–S11, S13–S17), wrist BVP + 
 
 ## Pipeline Architecture
 
-![Architectural Diagram](docs/Pulse Architecture Diagram.png)
+![Architectural Diagram](docs/Pulse_Architecture_Diagram.png)
 
 ---
 
