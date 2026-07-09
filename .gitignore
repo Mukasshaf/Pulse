@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+.env
+# AI Configurations and Contexts
+.claude/
+.gemini/
+/CLAUDE.md
+/GEMINI.md
+readme2.md
+
+# Data and Outputs
+/data/
+/graphify-out/
+/raw/
