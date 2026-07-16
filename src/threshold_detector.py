@@ -1,15 +1,4 @@
-"""
-threshold_detector.py
-----------------------
-Layer 1 — adaptive per-subject threshold detector for real-time event flagging.
-No ML. Deterministic rules against each subject's own baseline.
 
-GSR : flag SCR sample where amplitude > mu + 2*sigma of subject's baseline SCR
-HR  : flag window where rolling HR deviates > 10% from subject's baseline mean HR
-
-Validation: measure detection latency at the baseline->stress transition
-in WESAD condition labels.
-"""
 
 import sys
 import os
@@ -22,10 +11,9 @@ from wesad_loader import load_subject
 from preprocess import preprocess_subject
 
 
-# ── GSR threshold ─────────────────────────────────────────────────────────────
+#  GSR threshold 
 
 def gsr_baseline_stats(preprocessed: dict) -> dict:
-    """mu, sigma of SCR amplitude over subject's baseline (label=1) samples."""
     scr    = preprocessed["eda"]["scr"]
     labels = preprocessed["labels"]["eda"]
     baseline_scr = scr[labels == 1]
@@ -37,13 +25,7 @@ def gsr_baseline_stats(preprocessed: dict) -> dict:
 
 
 def flag_gsr_events(preprocessed: dict, k: float = 2.0) -> dict:
-    """
-    Flag SCR samples exceeding mu + k*sigma of subject's baseline.
-
-    Returns
-    -------
-    dict: threshold, flags (bool array, len = len(scr)), flag_indices
-    """
+  
     stats = gsr_baseline_stats(preprocessed)
     threshold = stats["mu"] + k * stats["sigma"]
 
@@ -55,10 +37,9 @@ def flag_gsr_events(preprocessed: dict, k: float = 2.0) -> dict:
             "flags": flags, "flag_indices": flag_indices}
 
 
-# ── HR threshold ──────────────────────────────────────────────────────────────
+#  HR threshold 
 
 def hr_baseline_mean(preprocessed: dict) -> float:
-    """Mean HR over subject's baseline (label=1) IBI values."""
     ibi_ms  = preprocessed["peaks"]["ibi_ms"]
     ibi_idx = preprocessed["peaks"]["ibi_idx"]
     labels  = preprocessed["labels"]["bvp"]
@@ -74,15 +55,7 @@ def hr_baseline_mean(preprocessed: dict) -> float:
 
 def flag_hr_events(preprocessed: dict, pct: float = 0.10,
                    window_s: float = 10.0) -> dict:
-    """
-    Rolling HR computed over window_s-second windows (step = 1s).
-    Flag windows where HR deviates > pct from subject's baseline mean HR.
 
-    Returns
-    -------
-    dict: baseline_hr, threshold_hi, threshold_lo, window_times (s),
-          window_hr, flags (bool array aligned with window_times)
-    """
     baseline_hr = hr_baseline_mean(preprocessed)
     threshold_hi = baseline_hr * (1 + pct)
     threshold_lo = baseline_hr * (1 - pct)
@@ -127,11 +100,10 @@ def flag_hr_events(preprocessed: dict, pct: float = 0.10,
     }
 
 
-# ── Onset latency validation ────────────────────────────────────────────────
+# Onset latency validation 
 
 def find_condition_onset(preprocessed: dict, signal: str = "eda",
                          condition: int = 2) -> float:
-    """First transition timestamp (s) into the given condition."""
     labels = preprocessed["labels"][signal]
     fs = preprocessed["fs"][signal]
     idx = np.where(labels == condition)[0]
@@ -142,10 +114,7 @@ def find_condition_onset(preprocessed: dict, signal: str = "eda",
 
 def measure_gsr_latency(preprocessed: dict, k: float = 2.0,
                         search_window_s: float = 30.0) -> dict:
-    """
-    Latency (s) between stress condition onset and first GSR flag
-    within search_window_s after onset.
-    """
+   
     onset_s = find_condition_onset(preprocessed, signal="eda", condition=2)
     fs_eda  = preprocessed["fs"]["eda"]
 
@@ -165,10 +134,7 @@ def measure_gsr_latency(preprocessed: dict, k: float = 2.0,
 
 def measure_hr_latency(preprocessed: dict, pct: float = 0.10,
                        search_window_s: float = 30.0) -> dict:
-    """
-    Latency (s) between stress condition onset and first HR flag
-    within search_window_s after onset.
-    """
+   
     onset_s = find_condition_onset(preprocessed, signal="bvp", condition=2)
     hr = flag_hr_events(preprocessed, pct=pct)
 
@@ -184,7 +150,7 @@ def measure_hr_latency(preprocessed: dict, pct: float = 0.10,
     return {"onset_s": onset_s, "latency_s": float(latency_s), "detected": True}
 
 
-# ── Summary / CLI ──────────────────────────────────────────────────────────────
+#  Summary / CLI 
 
 def summary(preprocessed: dict) -> dict:
     sid = preprocessed["sid"]

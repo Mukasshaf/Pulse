@@ -1,22 +1,4 @@
-"""
-classifier.py
--------------
-Random Forest classifier for stress vs baseline classification.
-Implements LOSO (Leave-One-Subject-Out) cross-validation — the only
-valid evaluation strategy for multi-subject physiological data.
 
-Single-subject mode (< 2 subjects): falls back to stratified 5-fold CV
-for development/testing. Switch to LOSO as soon as S3+ data is available.
-
-Public API:
-    train_loso(subject_dfs)         -> results dict
-    train_single_subject(df_norm)   -> results dict (dev only)
-    grid_search(X, y)               -> best RF estimator
-    compute_metrics(y_true, y_pred) -> dict of accuracy/F1/etc.
-    plot_results(results, out_dir)  -> saves confusion matrix + importance
-    save_model(clf, path)
-    load_model(path)                -> classifier
-"""
 
 import numpy as np
 import pandas as pd
@@ -50,7 +32,7 @@ FEATURE_COLS = [
         "scr_count", "scr_max_amp", "scr_energy",
         "scr_epeak", "scl_mean"]
 
-# RF starting config from Barik et al. (same sensor stack)
+# RF starting config from Barik et al. paper
 RF_BASE_PARAMS = {
     "n_estimators":     75,
     "max_leaf_nodes":   9,
@@ -66,22 +48,17 @@ RF_GRID = {
 }
 
 
-# ── Metrics ──────────────────────────────────────────────────────────────────
+# Metrics
 
 def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray,
                     labels: list = [1, 2]) -> dict:
-    """
-    Compute classification metrics.
-    Label convention: 1 = baseline, 2 = stress
-    Specificity = TN / (TN + FP) for the stress class.
-    """
+   
     acc  = accuracy_score(y_true, y_pred)
     prec = precision_score(y_true, y_pred, average="macro", zero_division=0)
     rec  = recall_score(y_true, y_pred, average="macro", zero_division=0)
     f1   = f1_score(y_true, y_pred, average="macro", zero_division=0)
 
     cm = confusion_matrix(y_true, y_pred, labels=labels)
-    # For binary: rows = [baseline, stress], cols = [pred_baseline, pred_stress]
     if cm.shape == (2, 2):
         tn, fp, fn, tp = cm.ravel()
         specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
@@ -101,15 +78,11 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray,
     }
 
 
-# ── Grid search ───────────────────────────────────────────────────────────────
+#  Grid search 
 
 def grid_search(X: np.ndarray, y: np.ndarray,
                 groups: np.ndarray = None) -> RandomForestClassifier:
-    """
-    GridSearchCV over RF hyperparameters.
-    Uses LOSO if groups provided, else stratified 5-fold.
-    Optimises for F1-macro.
-    """
+   
     cv = LeaveOneGroupOut() if groups is not None else StratifiedKFold(n_splits=5)
     cv_kwargs = {"groups": groups} if groups is not None else {}
 
@@ -123,24 +96,11 @@ def grid_search(X: np.ndarray, y: np.ndarray,
     return grid.best_estimator_
 
 
-# ── LOSO training (multi-subject) ────────────────────────────────────────────
+# LOSO training
 
 def train_loso(subject_dfs: list[pd.DataFrame],
                run_grid_search: bool = True) -> dict:
-    """
-    LOSO cross-validation across multiple subjects.
-
-    Parameters
-    ----------
-    subject_dfs    : list of normalized feature DataFrames (one per subject)
-                     each must have columns: sid, label, + FEATURE_COLS
-    run_grid_search: if True, runs GridSearchCV before LOSO evaluation
-
-    Returns
-    -------
-    results dict with per-fold metrics, aggregate metrics,
-    feature importance, best model
-    """
+  
     df_all = pd.concat(subject_dfs, ignore_index=True)
     df_all = df_all[df_all["label"].isin([1, 2])].copy()
 
@@ -183,14 +143,14 @@ def train_loso(subject_dfs: list[pd.DataFrame],
               f"f1={metrics['f1_macro']:.3f}  "
               f"spec={metrics['specificity']:.3f}")
 
-    # Aggregate metrics over all folds
+    # Aggregate metrics
     agg = compute_metrics(y, y_pred_all)
     agg_f1s = [f["f1_macro"] for f in fold_results]
     print(f"\n  Aggregate | acc={agg['accuracy']:.3f}  "
           f"f1={agg['f1_macro']:.3f} (±{np.std(agg_f1s):.3f})  "
           f"spec={agg['specificity']:.3f}")
 
-    # Feature importance from best clf (retrained on all data)
+    # Feature importance from best clf
     best_clf.fit(X, y)
     importance = dict(zip(FEATURE_COLS, best_clf.feature_importances_.tolist()))
 
@@ -208,15 +168,11 @@ def train_loso(subject_dfs: list[pd.DataFrame],
     }
 
 
-# ── Single-subject fallback (dev only) ───────────────────────────────────────
+#  Single-subject fallback
 
 def train_single_subject(df_norm: pd.DataFrame,
                          run_grid_search: bool = True) -> dict:
-    """
-    Stratified 5-fold CV on a single subject's normalized features.
-    FOR DEVELOPMENT ONLY — not valid for publication.
-    Switch to train_loso() as soon as multiple subjects available.
-    """
+    
     sid = df_norm["sid"].iloc[0]
     df  = df_norm[df_norm["label"].isin([1, 2])].copy()
     X   = df[FEATURE_COLS].values
@@ -241,7 +197,6 @@ def train_single_subject(df_norm: pd.DataFrame,
           f"f1={metrics['f1_macro']:.3f}  "
           f"spec={metrics['specificity']:.3f}")
 
-    # Feature importance (full fit)
     best_clf.fit(X, y)
     importance = dict(zip(FEATURE_COLS, best_clf.feature_importances_.tolist()))
 
@@ -257,14 +212,10 @@ def train_single_subject(df_norm: pd.DataFrame,
     }
 
 
-# ── Model comparison (RF vs SVM vs KNN) ──────────────────────────────────────
+# Model comparison (RF vs SVM vs KNN)
 
 def compare_models(df_norm: pd.DataFrame) -> pd.DataFrame:
-    """
-    Compare RF, SVM, KNN on single-subject 5-fold CV.
-    Documents SVM's specificity collapse on this sensor stack
-    (Barik et al. finding — 6.7% specificity for SVM vs 66.7% for RF).
-    """
+   
     sid = df_norm["sid"].iloc[0]
     df  = df_norm[df_norm["label"].isin([1, 2])].copy()
     X   = df[FEATURE_COLS].values
@@ -296,7 +247,7 @@ def compare_models(df_norm: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ── Plots ─────────────────────────────────────────────────────────────────────
+# Plots
 
 def plot_results(results: dict,
                  out_dir: str = "outputs/plots") -> None:
@@ -307,7 +258,7 @@ def plot_results(results: dict,
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     sid_tag = f"S{results.get('sid', 'multi')}"
 
-    # 1. Feature importance bar chart
+    #Feature importance bar chart
     importance = results["importance"]
     features   = list(importance.keys())
     values     = list(importance.values())
@@ -328,7 +279,7 @@ def plot_results(results: dict,
     plt.close()
     print(f"  Feature importance → {out_dir}/feature_importance_{sid_tag}.png")
 
-    # 2. Confusion matrix
+    #Confusion matrix
     cm = np.array(results.get("aggregate", results.get("metrics", {}))
                   .get("confusion_matrix", [[0, 0], [0, 0]]))
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -348,7 +299,7 @@ def plot_results(results: dict,
     print(f"  Confusion matrix  → {out_dir}/confusion_matrix_{sid_tag}.png")
 
 
-# ── Save / load model ─────────────────────────────────────────────────────────
+#  Save / load model
 
 def save_model(clf, path: str = "outputs/models/classifier.pkl") -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -362,7 +313,7 @@ def load_model(path: str = "outputs/models/classifier.pkl"):
         return pickle.load(f)
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# CLI
 
 if __name__ == "__main__":
     sid      = int(sys.argv[1]) if len(sys.argv) > 1 else 2
@@ -373,11 +324,11 @@ if __name__ == "__main__":
     df_raw       = extract_window_features(preprocessed)
     df_norm, _   = normalize_subject(df_raw)
 
-    # Single-subject mode (switch to train_loso when S3+ available)
+    # Single-subject mode
     results = train_single_subject(df_norm, run_grid_search=True)
     plot_results(results)
 
-    # Model comparison — documents SVM/KNN vs RF
+    # Model comparison 
     print("\nRunning model comparison...")
     comparison_df = compare_models(df_norm)
     Path("outputs/results").mkdir(parents=True, exist_ok=True)

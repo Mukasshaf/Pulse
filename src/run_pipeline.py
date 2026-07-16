@@ -1,12 +1,4 @@
-"""
-run_pipeline.py
----------------
-Runs the full pipeline for multiple WESAD subjects and performs
-LOSO cross-validation across all available subjects.
 
-Usage:
-    uv run python src/run_pipeline.py --sids 2 3 4 5 6 --data_dir data/WESAD
-"""
 
 import argparse
 import sys
@@ -25,7 +17,6 @@ import json
 
 
 def run_subject(sid: int, data_dir: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Full pipeline for one subject. Returns (df_raw, df_norm)."""
     print(f"\n{'─'*50}")
     print(f"  Processing S{sid}")
     print(f"{'─'*50}")
@@ -59,7 +50,7 @@ def main():
 
     # print(f"\nGPAMS Pipeline — subjects: {args.sids}")
 
-    # # ── Run per-subject pipeline ──────────────────────────────────────────────
+    # #  Run per-subject pipeline 
     # norm_dfs = []
     # failed   = []
 
@@ -113,7 +104,7 @@ def main():
         print("\n  Need at least 2 subjects for LOSO. Exiting.")
         return
 
-    # ── LOSO cross-validation ─────────────────────────────────────────────────
+    #  LOSO cross-validation 
     print(f"\n{'='*50}")
     print(f"  LOSO Cross-Validation ({len(norm_dfs)} subjects)")
     print(f"{'='*50}")
@@ -121,7 +112,7 @@ def main():
     run_gs = not args.no_grid_search
     results = train_loso(norm_dfs, run_grid_search=run_gs)
 
-    # ── Print aggregate summary ───────────────────────────────────────────────
+    #  Print aggregate summary 
     agg = results["aggregate"]
     print(f"\n{'='*50}")
     print(f"  Final Results")
@@ -137,7 +128,7 @@ def main():
         bar = "█" * int(val * 40)
         print(f"    {feat:<16} {val:.4f}  {bar}")
 
-    # ── Save outputs ──────────────────────────────────────────────────────────
+    #  Save outputs 
     Path("outputs/results").mkdir(parents=True, exist_ok=True)
     Path("outputs/models").mkdir(parents=True, exist_ok=True)
 
@@ -158,7 +149,7 @@ def main():
     with open("outputs/models/best_params_loso.json", "w") as f:
         json.dump(params, f, indent=2)
 
-    # ── Model comparison on pooled data ───────────────────────────────────────
+    #  Model comparison on pooled data 
     print(f"\n  Running model comparison on pooled data...")
     df_all = pd.concat(norm_dfs, ignore_index=True)
     comparison_df = compare_models(df_all)

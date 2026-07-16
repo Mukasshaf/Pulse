@@ -1,9 +1,4 @@
-"""
-features.py
------------
-Windowed feature extraction from preprocessed PPG and EDA signals.
-9 features per window (scl_slope removed).
-"""
+
 
 import numpy as np
 import pandas as pd

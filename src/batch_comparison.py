@@ -1,13 +1,6 @@
-"""
-batch_comparison.py
---------------------
-Batch comparison: individual subjects vs group average.
-% change (stress vs baseline) per feature per subject -> heatmap.
-Flags low-consistency / low-magnitude features for removal.
+# Batch comparison: individual subjects vs group average.
+# change (stress vs baseline) per feature per subject
 
-Usage:
-    uv run python src/batch_comparison.py --sids 2 3 4 5 6 7 8 9 10 11 13 14 15 16 17
-"""
 
 import argparse
 import sys
@@ -26,8 +19,7 @@ FEATURE_COLS = [
 
 
 def pct_change(baseline_mean, stress_mean, baseline_std, eps=1e-6):
-    # Use baseline_std as denominator floor instead of fixed eps —
-    # scales with feature's own variability, avoids blowup on near-zero counts
+    
     denom = max(abs(baseline_mean), baseline_std, eps)
     return (stress_mean - baseline_mean) / denom * 100.0
 

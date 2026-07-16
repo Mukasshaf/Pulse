@@ -1,23 +1,4 @@
-"""
-normalize.py
-------------
-Within-subject z-score normalization of extracted feature windows.
 
-Core design: all features are normalized against that subject's own
-baseline (label=1) windows — never against group statistics.
-
-z = (feature - mu_baseline) / sigma_baseline
-
-This ensures cross-domain and cross-condition comparisons are relative
-to the individual's own resting state, which is the core of GPAMS's
-within-subject activation mapping design.
-
-Public API:
-    normalize_subject(df)           -> (df_norm, baseline_stats)
-    save_normalized(df, df_norm, baseline_stats, sid, out_dir)
-    load_normalized(sid, out_dir)   -> (df_raw, df_norm, baseline_stats)
-    normalization_summary(df, df_norm)
-"""
 
 import numpy as np
 import pandas as pd
@@ -43,26 +24,10 @@ META_COLS = [
 ]
 
 
-# ── Core normalization ────────────────────────────────────────────────────────
+#  Core normalization 
 
 def normalize_subject(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Z-score normalize all feature windows against the subject's own
-    baseline (label=1) windows.
-
-    Parameters
-    ----------
-    df : raw feature DataFrame from features.extract_window_features()
-
-    Returns
-    -------
-    df_norm        : normalized DataFrame — same shape as df,
-                     feature columns replaced with z-scores,
-                     meta columns preserved unchanged
-    baseline_stats : DataFrame with columns [feature, mu, sigma]
-                     — the normalization parameters per feature
-                     — save these for applying to live hardware data
-    """
+    
     baseline = df[df["label"] == 1][FEATURE_COLS]
 
     if len(baseline) == 0:
@@ -74,13 +39,12 @@ def normalize_subject(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     mu    = baseline.mean()
     sigma = baseline.std(ddof=1)
 
-    # Prevent division by zero on constant features
     sigma = sigma.replace(0.0, 1e-6)
 
-    # Build normalized feature matrix
+
     features_norm = (df[FEATURE_COLS] - mu) / sigma
 
-    # Assemble output — meta columns + normalized features
+    # Assemble output
     df_norm = df[META_COLS].copy()
     df_norm = pd.concat([df_norm, features_norm], axis=1)
 
@@ -93,7 +57,7 @@ def normalize_subject(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     return df_norm, baseline_stats
 
 
-# ── Save / load ───────────────────────────────────────────────────────────────
+# Save / load
 
 def save_normalized(df_raw: pd.DataFrame,
                     df_norm: pd.DataFrame,
@@ -133,7 +97,7 @@ def load_normalized(sid: int,
     )
 
 
-# ── Validation ────────────────────────────────────────────────────────────────
+#  Validation
 
 def normalization_summary(df_raw: pd.DataFrame,
                           df_norm: pd.DataFrame,
@@ -176,7 +140,7 @@ def normalization_summary(df_raw: pd.DataFrame,
     print()
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# CLI
 
 if __name__ == "__main__":
     sid      = int(sys.argv[1]) if len(sys.argv) > 1 else 2

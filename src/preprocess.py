@@ -1,22 +1,4 @@
-"""
-preprocess.py
--------------
-Signal preprocessing for PPG (BVP) and EDA (GSR) signals.
-All functions are parameterized by sampling rate — same code runs on
-WESAD data and live hardware output.
 
-Pipeline per signal:
-    BVP  → Butterworth BPF (0.5–5 Hz) → peak detection → IBI series
-    EDA  → low-pass filter (1 Hz) → EMD decomposition → SCL + SCR
-    ACC  → variance per window → motion artifact flag
-
-Public API:
-    clean_bvp(bvp, fs)              → cleaned BVP array
-    detect_peaks(bvp_clean, fs)     → peak indices + IBI array (ms)
-    decompose_eda(eda, fs)          → dict with scl, scr, eda_clean
-    flag_motion_artifacts(acc, fs, window_s, threshold) → bool mask (True = artifact)
-    preprocess_subject(subject)     → all of the above in one call
-"""
 
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
@@ -28,14 +10,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from wesad_loader import load_subject
 
 
-# ── BVP / PPG ───────────────────────────────────────────────────────────────
+#  BVP PPG 
 
 def clean_bvp(bvp: np.ndarray, fs: int = 64) -> np.ndarray:
-    """
-    4th order Butterworth BPF: 0.5 – 5 Hz
-    Covers physiological HR range (30–300 BPM).
-    Upper cutoff can be tightened to 3.5 Hz if hardware has motion noise.
-    """
+    
     low  = 0.5 / (fs / 2)
     high = min(5.0 / (fs / 2), 0.99)
     sos  = butter(4, [low, high], btype="band", output="sos")
@@ -43,15 +21,7 @@ def clean_bvp(bvp: np.ndarray, fs: int = 64) -> np.ndarray:
 
 
 def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict:
-    """
-    Detect systolic peaks in cleaned BVP and compute IBI series.
-
-    Applies two-stage cleaning:
-      1. Physiological plausibility: 300-2000 ms (30-200 BPM)
-      2. Local median filter: remove IBIs deviating > 30% from
-         rolling 5-beat median — catches missed/double peaks that
-         slip through the plausibility gate.
-    """
+    
     from scipy.ndimage import median_filter
 
     ppg_signals, info = nk.ppg_process(bvp_clean, sampling_rate=fs)
@@ -70,7 +40,7 @@ def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict:
     ibi_ms  = ibi_ms[valid]
     ibi_idx = ibi_idx[valid]
 
-    # Stage 2: local median filter — remove outliers > 30% from 5-beat median
+    # Stage 2: local median filter
     if len(ibi_ms) >= 5:
         ibi_median = median_filter(ibi_ms, size=5, mode="nearest")
         ratio      = np.abs(ibi_ms - ibi_median) / (ibi_median + 1e-6)
@@ -87,22 +57,10 @@ def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict:
         "mean_hr": float(mean_hr),
     }
 
-# ── EDA / GSR ────────────────────────────────────────────────────────────────
+#  EDA / GSR 
 
 def decompose_eda(eda: np.ndarray, fs: int = 4) -> dict:
-    """
-    Decompose raw EDA into tonic (SCL) and phasic (SCR) components
-    using neurokit2's eda_process.
-
-    Returns
-    -------
-    dict:
-        eda_clean : filtered EDA array
-        scl       : tonic component (slow baseline)
-        scr       : phasic component (event-driven spikes)
-        scr_peaks : indices of detected SCR peaks
-        raw       : original input
-    """
+   
     eda_signals, info = nk.eda_process(eda, sampling_rate=fs)
 
     eda_clean = eda_signals["EDA_Clean"].values.astype(np.float32)
@@ -123,19 +81,12 @@ def decompose_eda(eda: np.ndarray, fs: int = 4) -> dict:
     }
 
 
-# ── Motion artifact detection ────────────────────────────────────────────────
+# Motion artifact detection 
 
 def flag_motion_artifacts(acc: np.ndarray, fs: int = 32,
                           window_s: float = 1.0,
                           threshold: float = 50.0) -> np.ndarray:
-    """
-    Flag windows with high ACC variance as motion artifacts.
-
-    Returns
-    -------
-    artifact_mask : bool array, length = number of 1s windows
-                    True = artifact present
-    """
+    
     magnitude = np.sqrt(np.sum(acc.astype(np.float32) ** 2, axis=1))
     magnitude -= np.mean(magnitude)
 
@@ -150,13 +101,9 @@ def flag_motion_artifacts(acc: np.ndarray, fs: int = 32,
     return artifact_mask
 
 
-# ── Combined per-subject preprocessing ──────────────────────────────────────
+# Combined per-subject preprocessing 
 
 def preprocess_subject(subject: dict) -> dict:
-    """
-    Run full preprocessing pipeline on a loaded subject dict.
-    Input: output of wesad_loader.load_subject()
-    """
     sid    = subject["sid"]
     fs_bvp = subject["fs"]["bvp"]
     fs_eda = subject["fs"]["eda"]
@@ -186,18 +133,12 @@ def preprocess_subject(subject: dict) -> dict:
     }
 
 
-# ── Validation plot ──────────────────────────────────────────────────────────
+# Validation plot 
 
 def plot_validation(subject_raw: dict, preprocessed: dict,
                     save_path: str = "outputs/plots/preprocess_validation.png",
                     n_seconds: int = 30) -> None:
-    """
-    4-panel validation plot:
-        1. Raw BVP vs cleaned BVP
-        2. Detected peaks on cleaned BVP
-        3. EDA SCL/SCR decomposition
-        4. ACC magnitude with artifact flags
-    """
+   
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -295,7 +236,7 @@ def plot_validation(subject_raw: dict, preprocessed: dict,
     print(f"\n  Validation plot saved → {save_path}")
 
 
-# ── CLI ──────────────────────────────────────────────────────────────────────
+# CLI 
 
 if __name__ == "__main__":
     sid      = int(sys.argv[1]) if len(sys.argv) > 1 else 2
