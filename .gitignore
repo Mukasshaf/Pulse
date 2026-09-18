@@ -1,0 +1,42 @@
+﻿# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing and type checking caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Data directories (raw datasets, captures, event logs)
+data/*
+!data/WESAD/
+!data/hardware/
+!data/game_logs/
+!data/**/.gitkeep
+
+# Output artifacts (trained models, feature matrices, plots, run logs)
+outputs/*
+!outputs/features/
+!outputs/models/
+!outputs/plots/
+!outputs/results/
+!outputs/**/.gitkeep
+
+# Operating system artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

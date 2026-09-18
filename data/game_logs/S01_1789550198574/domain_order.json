@@ -1,0 +1,14 @@
+{
+  "subject_id": "S01",
+  "session_start_unix_ts_ms": 1789550198574,
+  "random_seed": 1789550198,
+  "domain_order": [
+    "impulsivity_gratification",
+    "peer_influence",
+    "rule_ambiguity",
+    "academic_pressure",
+    "risk_reward",
+    "future_uncertainty",
+    "social_evaluation"
+  ]
+}
