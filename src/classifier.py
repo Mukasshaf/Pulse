@@ -134,11 +134,14 @@ def train_loso(subject_dfs: list[pd.DataFrame],
         y_pred_all[test_idx] = y_pred
 
         metrics = compute_metrics(y_test, y_pred)
-        metrics["test_sid"] = int(test_sid)
+        try:
+            metrics["test_sid"] = int(test_sid)
+        except (ValueError, TypeError):
+            metrics["test_sid"] = test_sid
         metrics["n_test"]   = len(y_test)
         fold_results.append(metrics)
 
-        print(f"  Fold S{test_sid:02d} | "
+        print(f"  Fold {metrics['test_sid']} | "
               f"acc={metrics['accuracy']:.3f}  "
               f"f1={metrics['f1_macro']:.3f}  "
               f"spec={metrics['specificity']:.3f}")

@@ -8,6 +8,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from wesad_loader import load_subject
+from hardware_loader import load_hardware_csv
 
 
 #  BVP PPG 
@@ -236,7 +237,62 @@ def plot_validation(subject_raw: dict, preprocessed: dict,
     print(f"\n  Validation plot saved → {save_path}")
 
 
-# CLI 
+
+# Hardware path
+
+# ACC artifact threshold for raw MPU6050 int16 ADC values.
+# The default threshold in flag_motion_artifacts() (50.0) is tuned for WESAD's
+# normalized float ACC values. Raw hardware ACC variance at rest is ~2000-7000
+# (int16 scale) -- empirically derived from resting 60s capture, mean=2929.
+# Threshold set to 3x resting mean = ~8800 (matches the mu+2sigma principle
+# used elsewhere in this project for per-subject adaptive thresholding).
+ACC_THRESHOLD_HW: float = 8800.0
+
+
+def preprocess_hardware(csv_path: str) -> dict:
+    """
+    Load a hardware CSV via hardware_loader and run the same preprocessing
+    pipeline as preprocess_subject(), with fs=66.67 passed explicitly on
+    every call.  No fs=64 default is used anywhere in this path.
+
+    Returns a dict matching preprocess_subject() output shape, except:
+      - 'sid' is the CSV filename stem (not an integer)
+      - 'labels' values are None (no condition labels on hardware data)
+    """
+    data   = load_hardware_csv(csv_path)
+    sid    = data["sid"]
+    fs_bvp = data["fs"]["bvp"]   # 66.6667 Hz from hardware_loader.HW_FS
+    fs_eda = data["fs"]["eda"]   # same -- hardware samples all signals together
+    fs_acc = data["fs"]["acc"]   # same
+
+    print(f"  Preprocessing hardware file: {sid}  (fs={fs_bvp:.4f} Hz)")
+
+    bvp_clean = clean_bvp(data["bvp"], fs=fs_bvp)
+    peaks     = detect_peaks(bvp_clean, fs=fs_bvp)
+    print(f"    BVP  -> {len(peaks['peaks'])} peaks  mean HR = {peaks['mean_hr']:.1f} BPM")
+
+    eda_results = decompose_eda(data["eda"], fs=fs_eda)
+    print(f"    EDA  -> {len(eda_results['scr_peaks'])} SCR peaks  "
+          f"SCL range = [{eda_results['scl'].min():.4f}, {eda_results['scl'].max():.4f}]")
+
+    artifact_mask = flag_motion_artifacts(data["acc"], fs=fs_acc,
+                                          threshold=ACC_THRESHOLD_HW)
+    print(f"    ACC  -> {artifact_mask.mean() * 100:.1f}% windows flagged as artifacts "
+          f"(threshold={ACC_THRESHOLD_HW:.0f}, hardware ADC scale)")
+
+    return {
+        "sid":           sid,
+        "bvp_clean":     bvp_clean,
+        "peaks":         peaks,
+        "eda":           eda_results,
+        "artifact_mask": artifact_mask,
+        "labels":        data["labels"],   # None values -- no condition labels
+        "fs":            data["fs"],
+        "timestamp_ms":  data["timestamp_ms"],
+    }
+
+
+# CLI
 
 if __name__ == "__main__":
     sid      = int(sys.argv[1]) if len(sys.argv) > 1 else 2

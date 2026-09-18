@@ -9,6 +9,7 @@ wheels/
 # Virtual environments
 .venv/
 .env
+.venv-win/
 
 readme2.md
 
@@ -16,3 +17,10 @@ readme2.md
 /data/
 /graphify-out/
 /raw/
+
+
+eval_zero_shot.py
+fast_verify_wesad.py
+go_nogo_check.py
+record_20s.py
+train_hw_loso.py
