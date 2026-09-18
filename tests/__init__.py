@@ -1,1 +1,1 @@
-# Test suite package marker
+﻿"""Test suite package marker for Pulse."""

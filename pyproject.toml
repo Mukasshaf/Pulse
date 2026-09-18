@@ -1,7 +1,7 @@
 [project]
-name = "major-project"
+name = "pulse"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pulse â€” Multimodal Biosignal Stress Assessment & Gamification Protocol"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,8 +13,8 @@ dependencies = [
     "numpy>=2.5.0",
     "openai>=2.43.0",
     "pandas>=2.3.3",
-    "pyserial>=3.5",
     "pygame>=2.6.0",
+    "pyserial>=3.5",
     "scikit-learn>=1.9.0",
     "scipy>=1.18.0",
 ]
@@ -25,3 +25,6 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.15.19",
 ]
+
+[tool.uv]
+package = false

@@ -12,13 +12,22 @@ Design and validate a domain-based interactive simulation framework that maps au
 
 ## Current Status
 
-Phase 1 (WESAD software pipeline) is complete. `wesad_loader.py` loads and label-aligns raw WESAD subject data. `preprocess.py` cleans BVP via bandpass filtering and peak detection with IBI outlier correction, and decomposes EDA into tonic (SCL) and phasic (SCR) components. `features.py` extracts a 9-feature vector (HR, RMSSD, SDNN, pNN50, SCR count/amplitude/energy/energy-per-peak, SCL mean) over 60s windows. `normalize.py` applies within-subject z-score normalization against each subject's own baseline. `classifier.py` trains and evaluates a Random Forest with Leave-One-Subject-Out cross-validation. `threshold_detector.py` implements real-time, non-ML event flagging (GSR and HR threshold crossing) with onset-latency validation. `run_pipeline.py` runs the full chain across all subjects in parallel. `batch_comparison.py` cross-checks feature consistency across subjects.
+- **Phase 1 (WESAD software pipeline)**: Complete. `wesad_loader.py` loads raw WESAD data. `preprocess.py` filters BVP and decomposes EDA into tonic (SCL) and phasic (SCR) components. `features.py` extracts a 9-feature vector over 60s windows. `normalize.py` applies within-subject z-score normalization. `classifier.py` trains a Random Forest with Leave-One-Subject-Out cross-validation. `threshold_detector.py` implements real-time non-ML event flagging.
+- **Phase 2 & Milestone M2 (Hardware Bring-Up)**: Complete. ESP32 acquisition rig verified (drop rate 0.010%, calibrated `ACC_THRESHOLD_HW = 8800.0`, valid pulse IBIs).
+- **Phase 4 (Gamification Engine)**: Complete. 60 FPS state machine in Pygame implementing 7 behavioral domains and 14 validated scenarios (15–25 age range) with score-free narrative consequence design and host-PC `unix_ts_ms` event logging.
 
 ---
 
-## Dataset
+## WESAD Benchmark Results
 
-WESAD (Schmidt et al., 2018) — 15 subjects (S2–S11, S13–S17), wrist BVP + EDA, used as the software validation bridge until custom hardware is assembled.
+Random Forest, binary classification (baseline vs stress), evaluated with Leave-One-Subject-Out cross-validation across all 15 subjects (807 windows total).
+
+| Metric | Value |
+|---|---|
+| Accuracy | 0.9591 |
+| F1-macro | 0.9503 |
+| Specificity | 0.9841 |
+| Sensitivity | 0.9004 |
 
 ---
 
@@ -28,13 +37,143 @@ WESAD (Schmidt et al., 2018) — 15 subjects (S2–S11, S13–S17), wrist BVP + 
 
 ---
 
-## Results
+## Repository Structure
 
-Random Forest, binary classification (baseline vs stress), evaluated with Leave-One-Subject-Out cross-validation across all 15 subjects (807 windows total).
- 
-| Metric | Value |
-|---|---|
-| Accuracy | 0.9591 |
-| F1-macro | 0.9503 |
-| Specificity | 0.9841 |
-| Sensitivity | 0.9004 |
+```
+Pulse/
+├── .gitignore                            # Unified ignore rules (caches, data/, outputs/, venvs)
+├── .python-version                       # Python runtime specification (3.13)
+├── pyproject.toml                        # Merged dependencies (numpy, scipy, scikit-learn, neurokit2, pygame, etc.)
+├── uv.lock                               # Deterministic dependency lockfile
+├── README.md                             # Project overview (both tracks documented)
+├── CLAUDE.md / GEMINI.md                 # AI agent rules & architecture contracts
+│
+├── assets/                               # [Ayush] Static media assets
+│   └── audio/
+│       └── tension_drone.wav             # 60–80 Hz low-frequency loop drone
+│
+├── data/                                 # Shared data root (gitignored)
+│   ├── WESAD/                            # [Mukasshaf] Benchmark dataset (S2–S17)
+│   ├── hardware/                         # [Mukasshaf] ESP32 sensor captures
+│   │   ├── raw/                          # Raw CSVs from serial_reader.py
+│   │   └── labeled/                      # Protocol labeled CSVs
+│   └── game_logs/                        # [Ayush] Session event logs
+│
+├── docs/                                 # Unified documentation
+│   ├── specs/                            # [Ayush] Gamification technical specifications
+│   │   ├── ARCHITECTURE_SPEC.md
+│   │   ├── CODING_STANDARDS_AND_RULES.md
+│   │   ├── DATA_MODELS_AND_CONTRACTS.md
+│   │   ├── domain_implementation_strategy.md
+│   │   ├── IMPLEMENTATION_PLAN.md
+│   │   └── TEST_CRITERIA_AND_EDGE_CASES.md
+│   ├── guides/                           # [Mukasshaf] Hardware & validation guides
+│   │   ├── PULSE_Hardware_Setup.md
+│   │   ├── PULSE_M2_Validation_Guide.md
+│   │   ├── PULSE_Phase3_Pipeline_Additions.md
+│   │   └── PULSE_Pipeline_Change_Plan.md
+│   └── interface/
+│       └── PULSE_Gamification_Interface_Spec.md  # Inter-track contract
+│
+├── firmware/                             # [Mukasshaf] Microcontroller firmware
+│   └── firmware.ino                      # ESP32 66.67 Hz sampling sketch
+│
+├── notebooks/                            # Exploratory Jupyter notebooks
+│
+├── outputs/                              # Generated run artifacts (gitignored)
+│   ├── features/                         # Extracted 9-feature CSVs
+│   ├── models/                           # Trained estimators (rf_loso.pkl, hw_classifier.pkl)
+│   ├── plots/                            # Preprocessing & confusion matrix plots
+│   └── results/                          # Fold results, transfer gap, activation maps
+│
+├── src/                                  # Core application source
+│   ├── __init__.py
+│   ├── domains.py                        # [SHARED] Single source of truth for 7 canonical domain IDs
+│   ├── align_signals.py                  # [SHARED] Join script: hardware sensor CSV ↔ game events.csv
+│   │
+│   ├── pipeline/                         # [Mukasshaf] ML & Signal Processing Pipeline
+│   │   ├── __init__.py
+│   │   ├── wesad_loader.py               # WESAD pickle parser (Phase 1)
+│   │   ├── hardware_loader.py            # Hardware CSV parser (HW_FS = 66.67 Hz)
+│   │   ├── preprocess.py                 # BVP BPF, peak detect, EMD/SCL, motion flag (8800.0)
+│   │   ├── features.py                   # 9 locked features (60s window, 30s stride)
+│   │   ├── normalize.py                  # Within-subject z-score normalization
+│   │   ├── classifier.py                 # Tuned Random Forest (LOSO-CV)
+│   │   ├── threshold_detector.py         # Layer 1 deterministic μ+2σ rule
+│   │   ├── condition_labels.py           # Protocol labels (baseline/arithmetic/stroop)
+│   │   ├── condition_logger.py           # Session timer cue tool
+│   │   ├── eval_zero_shot.py             # Zero-shot WESAD-to-HW evaluator
+│   │   ├── train_hw_loso.py              # HW-trained LOSO classifier
+│   │   ├── go_nogo_check.py              # M3 gate verification (F1-macro ≥ 0.65)
+│   │   ├── batch_comparison.py           # Feature importance & comparison utility
+│   │   └── run_pipeline.py               # Multi-subject batch pipeline runner
+│   │
+│   ├── hardware/                         # [Mukasshaf] Serial acquisition tools
+│   │   ├── __init__.py
+│   │   └── serial_reader.py              # Live COM reader, validates rows, injects unix_ts_ms
+│   │
+│   └── game/                             # [Ayush] Gamification Engine (Pygame)
+│       ├── __init__.py
+│       ├── main.py                       # Game CLI entry point (--subject, etc.)
+│       ├── engine.py                     # Master GameEngine state machine & 60 FPS loop
+│       ├── constants.py                  # Enums (EngineState, EventType), colors, timers
+│       ├── event_logger.py               # 9-column CSV logger (with host unix_ts_ms)
+│       ├── scenarios.py                  # 14 scenarios registry (2 per domain)
+│       ├── scenario_logic.py             # Arithmetic, BART pumps, reward accumulators
+│       ├── ui.py                         # Pygame rendering (text, prompt boxes, timer bars)
+│       ├── ui_effects.py                 # Visual jitter (≤3px), screen vibration, color lerp
+│       ├── audio.py                      # Audio player for recovery & tension drones
+│       └── bridge_interface.py           # BridgeInterface & StubBridge abstraction
+│
+├── tests/                                # Automated test suite
+│   ├── __init__.py
+│   ├── conftest.py                       # Shared test fixtures (mock screen, session configs)
+│   │
+│   ├── game/                             # [Ayush] 41 Gamification engine tests
+│   │   ├── test_audio.py
+│   │   ├── test_bridge_interface.py
+│   │   ├── test_constants.py
+│   │   ├── test_engine.py
+│   │   ├── test_event_logger.py
+│   │   ├── test_scenario_logic.py
+│   │   ├── test_scenarios.py
+│   │   └── test_ui_effects.py
+│   │
+│   └── pipeline/                         # [Mukasshaf] ML & Signal tests
+│       ├── test_loaders.py
+│       ├── test_preprocess.py
+│       └── test_features.py
+│
+└── validation/                           # [Mukasshaf] Hardware bring-up validation
+    ├── run_m2_validation.py
+    ├── validate_peak_detection.py
+    ├── validate_gsr_stability.py
+    ├── validate_motion_flag.py
+    ├── validate_drop_rate.py
+    └── reports/
+        ├── M2_Full_Validation_Report.md
+        └── M2_Validation_Summary.md
+```
+
+---
+
+## Quickstart
+
+### Prerequisites
+- Python 3.11+ (Python 3.13 recommended)
+- Package manager: [`uv`](https://docs.astral.sh/uv/)
+
+### Installation
+```bash
+uv sync
+```
+
+### Running Tests
+```bash
+uv run pytest
+```
+
+### Running the Gamification Engine
+```bash
+uv run python -m src.game.main --subject S01 --fast-baseline
+```

@@ -1,1 +1,1 @@
-# src/game package -- Gamification Engine placeholder
+﻿"""Pulse Gamification Engine package."""

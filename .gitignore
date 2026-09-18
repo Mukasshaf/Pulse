@@ -1,26 +1,52 @@
-# Python-generated files
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
 *.py[oc]
+*$py.class
 build/
 dist/
 wheels/
 *.egg-info
 
+# Testing and type checking caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # Virtual environments
 .venv/
-.env
 .venv-win/
+venv/
+ENV/
+env/
+.env
 
-readme2.md
+# Data directories (raw datasets, captures, event logs)
+/data/*
+!/data/WESAD/
+!/data/hardware/
+!/data/game_logs/
+!/data/**/.gitkeep
 
-# Data and Outputs
-/data/
+# Output artifacts (trained models, feature matrices, plots, run logs)
+/outputs/*
+!/outputs/features/
+!/outputs/models/
+!/outputs/plots/
+!/outputs/results/
+!/outputs/**/.gitkeep
+
 /graphify-out/
 /raw/
 
+# Operating system artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
 
-eval_zero_shot.py
-fast_verify_wesad.py
-go_nogo_check.py
-record_20s.py
-train_hw_loso.py
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
