@@ -1,6 +1,39 @@
-﻿# Pulse — Multimodal Biosignal Stress Assessment & Gamification Protocol
+# Pulse: Gamified Physiological Activation Mapping System
 
-Pulse is an end-to-end research platform that investigates domain-specific physiological stress activation in healthy individuals aged 15–25. It bridges clinical laboratory stress paradigms (MIST, TSST, Stroop, BART, Iowa Gambling Task) with a deterministic, score-free digital gamification engine and an ESP32 wearable biosignal sensor pipeline.
+Engineering research prototype mapping autonomic stress activation across seven behavioral domains in young adults (15–25 years) using wearable PPG + GSR sensors integrated with a gamified simulation interface.
+
+---
+
+## Goal
+
+Design and validate a domain-based interactive simulation framework that maps autonomic physiological responses (HRV + EDA) to structured behavioral contexts — without diagnosing or labeling individuals. Output is a domain-level activation map per subject, plus event-aligned physiological trigger flags during gamified scenarios.
+
+---
+
+## Current Status
+
+- **Phase 1 (WESAD software pipeline)**: Complete. `wesad_loader.py` loads raw WESAD data. `preprocess.py` filters BVP and decomposes EDA into tonic (SCL) and phasic (SCR) components. `features.py` extracts a 9-feature vector over 60s windows. `normalize.py` applies within-subject z-score normalization. `classifier.py` trains a Random Forest with Leave-One-Subject-Out cross-validation. `threshold_detector.py` implements real-time non-ML event flagging.
+- **Phase 2 & Milestone M2 (Hardware Bring-Up)**: Complete. ESP32 acquisition rig verified (drop rate 0.010%, calibrated `ACC_THRESHOLD_HW = 8800.0`, valid pulse IBIs).
+- **Phase 4 (Gamification Engine)**: Complete. 60 FPS state machine in Pygame implementing 7 behavioral domains and 14 validated scenarios (15–25 age range) with score-free narrative consequence design and host-PC `unix_ts_ms` event logging.
+
+---
+
+## WESAD Benchmark Results
+
+Random Forest, binary classification (baseline vs stress), evaluated with Leave-One-Subject-Out cross-validation across all 15 subjects (807 windows total).
+
+| Metric | Value |
+|---|---|
+| Accuracy | 0.9591 |
+| F1-macro | 0.9503 |
+| Specificity | 0.9841 |
+| Sensitivity | 0.9004 |
+
+---
+
+## Pipeline Architecture
+
+![Architectural Diagram](docs/Pulse_Architecture_Diagram.png)
 
 ---
 

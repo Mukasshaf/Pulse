@@ -1,1 +1,1 @@
-"""Test suite package for Pulse Gamification Engine."""
+﻿"""Test suite package marker for Pulse."""

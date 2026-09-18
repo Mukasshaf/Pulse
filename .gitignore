@@ -1,7 +1,12 @@
-﻿# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.py[oc]
 *$py.class
+build/
+dist/
+wheels/
+*.egg-info
 
 # Testing and type checking caches
 .pytest_cache/
@@ -10,24 +15,29 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.venv-win/
 venv/
 ENV/
 env/
+.env
 
 # Data directories (raw datasets, captures, event logs)
-data/*
-!data/WESAD/
-!data/hardware/
-!data/game_logs/
-!data/**/.gitkeep
+/data/*
+!/data/WESAD/
+!/data/hardware/
+!/data/game_logs/
+!/data/**/.gitkeep
 
 # Output artifacts (trained models, feature matrices, plots, run logs)
-outputs/*
-!outputs/features/
-!outputs/models/
-!outputs/plots/
-!outputs/results/
-!outputs/**/.gitkeep
+/outputs/*
+!/outputs/features/
+!/outputs/models/
+!/outputs/plots/
+!/outputs/results/
+!/outputs/**/.gitkeep
+
+/graphify-out/
+/raw/
 
 # Operating system artifacts
 .DS_Store

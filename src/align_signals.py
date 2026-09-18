@@ -1,12 +1,19 @@
-﻿"""Signal Alignment Utility — joins hardware sensor captures with game event logs.
+"""align_signals.py -- Post-session alignment bridge.
 
-Joins on host-PC `unix_ts_ms` timestamps logged by both `serial_reader.py` (hardware)
-and `event_logger.py` (game engine).
+Joins hardware sensor CSV (from serial_reader.py) and game event CSV
+(from src/game/event_logger.py) on `unix_ts_ms`.
+
+Pipeline contract columns joined:
+    unix_ts_ms, event_type, domain, scenario_id, choice_data
+
+Behavioral columns preserved:
+    key_pressed, option_index, response_time_ms, metadata
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -101,14 +108,33 @@ def align_sensor_and_events(
 
 def main() -> None:
     """CLI entry point for signal alignment."""
-    parser = argparse.ArgumentParser(description="Align Pulse hardware sensor CSV with game events CSV.")
-    parser.add_argument("--sensor-csv", type=Path, required=True, help="Path to hardware sensor CSV")
-    parser.add_argument("--events-csv", type=Path, required=True, help="Path to game events CSV")
-    parser.add_argument("--output-csv", type=Path, required=True, help="Path for aligned output CSV")
+    parser = argparse.ArgumentParser(description="Pulse post-session signal alignment")
+    parser.add_argument("--subject", help="Subject ID (e.g., HW01)")
+    parser.add_argument("--sensor-csv", type=Path, help="Path to hardware raw sensor CSV")
+    parser.add_argument("--events-csv", type=Path, help="Path to game events CSV")
+    parser.add_argument("--output-csv", type=Path, help="Explicit path for aligned output CSV")
+    parser.add_argument("--out-dir", type=Path, default=Path("outputs/aligned"), help="Output directory")
 
     args = parser.parse_args()
-    written = align_sensor_and_events(args.sensor_csv, args.events_csv, args.output_csv)
-    print(f"Successfully aligned and wrote {written} rows to {args.output_csv}")
+
+    sensor_path = args.sensor_csv
+    events_path = args.events_csv
+    out_path = args.output_csv
+
+    if args.subject and not sensor_path:
+        sensor_path = Path(f"data/hardware/raw/{args.subject}/recorded_data.csv")
+    if args.subject and not events_path:
+        events_path = Path(f"data/game_logs/{args.subject}/events.csv")
+    if not out_path:
+        subj = args.subject or "aligned"
+        out_path = args.out_dir / f"{subj}_aligned.csv"
+
+    if not sensor_path or not events_path:
+        print("Error: Must specify either --subject or both --sensor-csv and --events-csv", file=sys.stderr)
+        sys.exit(1)
+
+    written = align_sensor_and_events(sensor_path, events_path, out_path)
+    print(f"Successfully aligned and wrote {written} rows to {out_path}")
 
 
 if __name__ == "__main__":
