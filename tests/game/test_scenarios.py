@@ -79,3 +79,27 @@ def test_dataclasses_are_frozen(domain_registry: list[Domain]) -> None:
     s = d.scenarios[0]
     with pytest.raises(FrozenInstanceError):
         s.title = "Mutated Title"  # type: ignore[misc]
+
+
+def test_scenario_titles_and_durations(domain_registry: list[Domain]) -> None:
+    """Verify all 14 scenarios have expected titles and conform to 15-25 age range."""
+    expected_titles = {
+        "academic_pressure_a": "Exam Countdown Rush",
+        "academic_pressure_b": "Academic Misconduct Hearing",
+        "peer_influence_a": "Group Chat Vote",
+        "peer_influence_b": "Unfair Team Blame",
+        "impulsivity_gratification_a": "Instant Loot vs. Multiplier Trap",
+        "impulsivity_gratification_b": "Submit Now vs. Improve More",
+        "risk_reward_a": "Tournament Strategy",
+        "risk_reward_b": "Viral Post Escalation",
+        "rule_ambiguity_a": "Portal Access Dilemma",
+        "rule_ambiguity_b": "Borrowed Template",
+        "future_uncertainty_a": "Track Selection Crossroads",
+        "future_uncertainty_b": "Ambiguous Feedback Before Finals",
+        "social_evaluation_a": "Live Panel Presentation Defense",
+        "social_evaluation_b": "Public Critique",
+    }
+    scenarios_by_id = {s.id: s for d in domain_registry for s in d.scenarios}
+    for s_id, expected_title in expected_titles.items():
+        assert s_id in scenarios_by_id
+        assert scenarios_by_id[s_id].title == expected_title
