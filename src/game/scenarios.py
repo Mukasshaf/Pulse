@@ -122,7 +122,7 @@ def generate_math_problems(count: int = 4, difficulty: str = "medium") -> list[M
 
 def _build_academic_pressure() -> Domain:
     """Build the Academic Performance Pressure domain."""
-    conseq_b = "Your justification has been submitted to the review board. The committee's decision is pending and will be communicated separately."
+    conseq_b = "Your statement has been submitted to the committee. Their decision will be communicated to you separately."
     s_a = Scenario(
         id="academic_pressure_a",
         domain_id=DomainID.ACADEMIC_PRESSURE,
@@ -140,16 +140,16 @@ def _build_academic_pressure() -> Domain:
     s_b = Scenario(
         id="academic_pressure_b",
         domain_id=DomainID.ACADEMIC_PRESSURE,
-        title="High-Stakes Grade Waiver",
+        title="Academic Misconduct Hearing",
         paradigm="Evaluative Observation Paradigm (Geen, 1991)",
-        priming_text="Your academic board has flagged your transcript for review. You must submit a written justification to retain your scholarship. The board's decision will be final.",
+        priming_text="You've been called before your school's academic integrity committee following an incident during your last exam. You must submit a written statement. The committee's decision will affect your academic standing — it is final.",
         priming_duration_s=8,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Accept responsibility and request leniency", conseq_b),
-            Option(2, "Challenge the board's criteria as unfair", conseq_b),
-            Option(3, "Provide evidence that the evaluation was an error", conseq_b),
+            Option(2, "Challenge the committee's conclusion as based on incomplete evidence", conseq_b),
+            Option(3, "Provide documentation that the incident was a misunderstanding", conseq_b),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
     )
@@ -161,15 +161,15 @@ def _build_peer_influence() -> Domain:
     s_a = Scenario(
         id="peer_influence_a",
         domain_id=DomainID.PEER_INFLUENCE,
-        title="Group Hacking Mandate",
+        title="Group Chat Vote",
         paradigm="Digital Asch Conformity (Stoll et al., 2022; Berns et al., 2005)",
-        priming_text="Your project team has been assigned a critical system audit. Four team members have already voted on the approach. You are the final vote.",
+        priming_text="Your friend group is deciding in a chat whether to share a private video of a classmate. Four friends have already voted. You are the last to respond.",
         priming_duration_s=8,
         decision_duration_s=35,
         consequence_duration_s=4,
         options=[
-            Option(1, "Agree with the team — skip the security audit", "The team proceeds with the shortcut. Audit flag has been raised by the system.", is_conforming=True),
-            Option(2, "Disagree — insist on the full audit", "The team has noted your objection. Team lead has requested a private meeting.", is_conforming=False),
+            Option(1, "Agree — share it", "The video has been shared. The classmate found out — they're upset and asking who agreed to it.", is_conforming=True),
+            Option(2, "Disagree — refuse and ask others to delete it", "The group has noted your objection. Some members are calling it an overreaction.", is_conforming=False),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
     )
@@ -211,20 +211,20 @@ def _build_impulsivity_gratification() -> Domain:
     s_b = Scenario(
         id="impulsivity_gratification_b",
         domain_id=DomainID.IMPULSIVITY_GRATIFICATION,
-        title="Instant Cashout vs. Long-Term Bonus",
+        title="Submit Now vs. Improve More",
         paradigm="Kirby Monetary Choice Questionnaire (Kirby et al., 1999)",
-        priming_text="You've completed a performance review. You can receive your evaluation now, or wait for the extended assessment which may yield a significantly better outcome — but you won't know for certain.",
+        priming_text="You've finished a draft of your assignment. You can submit it now for a guaranteed adequate grade, or spend more time refining it — which could significantly improve your grade, but might also make things worse if you second-guess yourself.",
         priming_duration_s=8,
         decision_duration_s=35,
         consequence_duration_s=4,
         options=[
-            Option(1, 'Receive a guaranteed moderate outcome now ("Competent — meets expectations")', "Assessment recorded: Meets Expectations."),
-            Option(2, "Wait for the extended assessment — outcome unknown", "Extended assessment complete."),
+            Option(1, "Submit now — guaranteed 'Adequate — Requirements Met'", "Grade recorded: Adequate — Requirements Met."),
+            Option(2, "Request more time — outcome unknown", "Extended review complete."),
         ],
         scenario_type=ScenarioType.DELAY_WAIT,
-        delay_wait_outcomes=["Extended assessment complete: Exceeds Expectations.", "Extended assessment complete: Needs Improvement."],
+        delay_wait_outcomes=["Extended review complete: Excellent.", "Extended review complete: Insufficient — major revision required."],
         post_wait_duration_s=15,
-        post_wait_text="Processing extended evaluation...",
+        post_wait_text="Reviewing additional changes...",
     )
     return Domain(DomainID.IMPULSIVITY_GRATIFICATION, "Impulsivity vs. Delayed Gratification", (s_a, s_b))
 
@@ -235,29 +235,29 @@ def _build_risk_reward() -> Domain:
     s_a = Scenario(
         id="risk_reward_a",
         domain_id=DomainID.RISK_REWARD,
-        title="High-Yield Volatile Market",
+        title="Tournament Strategy",
         paradigm="Iowa Gambling Task (Bechara et al., 1994)",
-        priming_text="You're managing an investment portfolio. Three assets are available. Historical performance data is incomplete — some assets carry hidden risks. Your final portfolio value will be recorded.",
+        priming_text="You're competing in an online tournament with limited attempts remaining. Three strategies are available. Historical performance data for each approach is incomplete — some strategies carry hidden risks. Your final ranking will be recorded.",
         priming_duration_s=8,
         decision_duration_s=40,
         consequence_duration_s=4,
         options=[
-            Option(1, "Asset A: Low volatility, consistent 8% yield", "Portfolio updated: Moderate gain realized as projected."),
-            Option(2, "Asset B: High volatility, avg 22% yield, [2 quarters of data missing]", "Portfolio updated: Volatility triggered an unhedged 15% loss."),
-            Option(3, "Asset C: Extreme volatility, avg 45% yield, [4 quarters of data missing]", "Market crash: Portfolio value reduced by 70%."),
+            Option(1, "Strategy A: Safe approach — Low variance, reliable 8% average score improvement per round", "Tournament updated: Moderate gain realized as projected."),
+            Option(2, "Strategy B: Aggressive approach — High variance, avg 22% improvement, [2 rounds of data missing]", "Tournament updated: Volatility triggered an unhedged score drop."),
+            Option(3, "Strategy C: Experimental approach — Extreme variance, avg 45% improvement, [4 rounds of data missing]", "Critical error: Ranking dropped significantly."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
     )
     s_b = Scenario(
         id="risk_reward_b",
         domain_id=DomainID.RISK_REWARD,
-        title="Safe Exit vs. Double Down",
+        title="Viral Post Escalation",
         paradigm="BART (Lejuez et al., 2002)",
-        priming_text="You've accumulated significant progress in a high-risk operation. You can secure your gains now, or push further — but the probability of a total system failure increases with each step.",
+        priming_text="You've been posting increasingly bold content online. Each post gets more attention — but the risk of being reported and losing access to your account grows with every step. You can stop now, or push further.",
         priming_duration_s=8,
         decision_duration_s=40,
         consequence_duration_s=4,
-        options=[Option(1, "SECURE GAINS", "Gains secured."), Option(2, "PUSH FURTHER", "System failure. All accumulated progress lost.")],
+        options=[Option(1, "STOP POSTING", "Following secured."), Option(2, "POST ANOTHER", "Account suspended. All accumulated following lost.")],
         scenario_type=ScenarioType.BART_ESCALATION,
         bart_config=b_cfg,
     )
@@ -269,16 +269,16 @@ def _build_rule_ambiguity() -> Domain:
     s_a = Scenario(
         id="rule_ambiguity_a",
         domain_id=DomainID.RULE_AMBIGUITY,
-        title="Gray-Hat System Bypass",
+        title="Portal Access Dilemma",
         paradigm="Personal Moral Dilemma (Greene et al., 2001)",
-        priming_text="Your close friend has been locked out of an essential academic system due to an administrative error that won't be resolved for 3 weeks — past the submission deadline. You have admin-level access credentials that could restore their account, but using them violates the institution's IT security policy.",
+        priming_text="Your close friend is locked out of the school's submission portal due to a technical error that won't be fixed for three weeks — past the assignment deadline. You still have their login saved from a previous help session. Using it violates the school's IT policy.",
         priming_duration_s=8,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
-            Option(1, "Use your credentials to restore their access — helps your friend, violates policy", "Access restored. The IT department has flagged an unauthorized login from your credentials."),
-            Option(2, "Refuse and advise them to file an official appeal — follows policy, friend misses the deadline", "Your friend's appeal was denied. They missed the deadline."),
-            Option(3, "Restore access anonymously through a workaround — technically doesn't use your credentials directly, but exploits a known system vulnerability", "The vulnerability you exploited has been patched. An investigation has been opened."),
+            Option(1, "Log in with their credentials to submit for them — helps your friend, violates policy", "Submission successful. The system flagged a login from an unrecognized device on your friend's account."),
+            Option(2, "Tell them to file an official complaint — follows policy, friend misses the deadline", "Your friend's appeal was denied. They missed the deadline and lost 20% of their grade."),
+            Option(3, "Find a workaround through the system's guest access feature — technically not their credentials, but exploits a known loophole", "The guest access loophole has been patched. An investigation into unusual submissions has been opened."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
         jitter_trigger_s=15,
@@ -286,16 +286,16 @@ def _build_rule_ambiguity() -> Domain:
     s_b = Scenario(
         id="rule_ambiguity_b",
         domain_id=DomainID.RULE_AMBIGUITY,
-        title="Copyright Exemption Dilemma",
+        title="Borrowed Template",
         paradigm="Taboo Trade-Off (Tetlock et al., 2000)",
-        priming_text="Your research team has discovered that a small open-source library you've been using contains code that was copied — without attribution — from a proprietary system. Removing it would set back your project by months. Your team lead says to keep it and move on.",
+        priming_text="Your group has been building on an old assignment from a senior student who graduated. You just realized the work was never formally shared — it could be classified as academic plagiarism. Removing it now sets your entire project back by days before the deadline.",
         priming_duration_s=8,
         decision_duration_s=40,
         consequence_duration_s=4,
         options=[
-            Option(1, "Remove the code and accept the project delay — respects IP rights, harms the team", "Code removed. Project delayed by 8 weeks. Sponsor expressed dissatisfaction."),
-            Option(2, "Keep the code and add retroactive attribution — compromise, legally questionable", "Retroactive attribution added. Original copyright owner has issued a formal cease-and-desist notice."),
-            Option(3, "Report the issue to the original author and negotiate a license — transparent but unpredictable outcome", "License negotiations stalled indefinitely. Project frozen pending legal clearance."),
+            Option(1, "Remove the borrowed sections and accept the delay — academically honest, harms the team's timeline", "Sections removed. Project delayed by several days before submission."),
+            Option(2, "Keep it and add an acknowledgement crediting the original work — a compromise, still academically questionable", "Acknowledgement added. Academic integrity board has flagged the submission for retroactive review."),
+            Option(3, "Contact the original student and ask for formal permission — transparent, but their response is unpredictable and time is short", "Permission request pending. Project submission frozen awaiting authorization."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
     )
@@ -309,15 +309,15 @@ def _build_future_uncertainty() -> Domain:
     s_a = Scenario(
         id="future_uncertainty_a",
         domain_id=DomainID.FUTURE_UNCERTAINTY,
-        title="Career Track Crossroads",
+        title="Track Selection Crossroads",
         paradigm="Ambiguous Feedback Paradigm (Hirsh & Inzlicht, 2008)",
-        priming_text="You've been offered two career paths. Both have significant implications for your future, but the outcomes of each path are influenced by factors you cannot predict or control.",
+        priming_text="You've been offered two paths forward. Both have significant implications for your future, but the outcomes of each path are influenced by factors you cannot predict or control.",
         priming_duration_s=8,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
-            Option(1, "Path A: Stable role at an established organization — Predictable trajectory. Growth potential: [DATA UNAVAILABLE].", rec_conseq),
-            Option(2, "Path B: High-risk role at a startup — Unpredictable trajectory. Compensation structure: [UNDER REVIEW].", rec_conseq),
+            Option(1, "Path A: Familiar, established track — Predictable progression. Long-term growth potential: [DATA UNAVAILABLE].", rec_conseq),
+            Option(2, "Path B: New, challenging path — Unpredictable trajectory. Support structure: [UNDER REVIEW].", rec_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
         has_post_wait=True,
@@ -327,16 +327,16 @@ def _build_future_uncertainty() -> Domain:
     s_b = Scenario(
         id="future_uncertainty_b",
         domain_id=DomainID.FUTURE_UNCERTAINTY,
-        title="Opaque Evaluation Criteria",
+        title="Ambiguous Feedback Before Finals",
         paradigm="Ambiguous Feedback + Uncertain Threat (Grillon et al., 2004; de Berker et al., 2016)",
-        priming_text="Your performance in this session is being evaluated by an algorithm. The evaluation criteria have not been disclosed. Your responses so far have been... atypical compared to other participants.",
+        priming_text="Before your final assessment, your teacher pulls you aside: 'Your approach throughout this term has been... atypical compared to your peers.' You don't know if this is a compliment or a warning. You must now respond.",
         priming_duration_s=8,
         decision_duration_s=40,
         consequence_duration_s=4,
         options=[
-            Option(1, "I've been responding honestly based on my instincts.", flag_conseq),
-            Option(2, "I've been carefully considering each option before responding.", flag_conseq),
-            Option(3, "I don't believe this evaluation is measuring what it claims to.", flag_conseq),
+            Option(1, "I've been approaching each task based on my instincts and what made sense to me.", flag_conseq),
+            Option(2, "I've been carefully considering each step before committing to anything.", flag_conseq),
+            Option(3, "I don't think the standard approach was appropriate for what we were being asked to do.", flag_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
         has_post_wait=True,
@@ -349,7 +349,7 @@ def _build_future_uncertainty() -> Domain:
 def _build_social_evaluation() -> Domain:
     """Build the Social Evaluation & Authority Response domain."""
     panel_conseq = "The panel has recorded your response. Composure score: evaluated. Final evaluation pending."
-    sup_conseq = "Your response has been logged. Updated performance assessment: Under continued review."
+    crit_conseq = "Your response has been logged. Updated assessment: Under continued review."
     s_a = Scenario(
         id="social_evaluation_a",
         domain_id=DomainID.SOCIAL_EVALUATION,
@@ -371,16 +371,16 @@ def _build_social_evaluation() -> Domain:
     s_b = Scenario(
         id="social_evaluation_b",
         domain_id=DomainID.SOCIAL_EVALUATION,
-        title="Harsh Manager Review",
+        title="Public Critique",
         paradigm="Evaluative Observation + Negative Feedback (Geen, 1991; Smeets et al., 2012)",
-        priming_text="Your direct supervisor has flagged your recent work for a critical performance review. The review was initiated by the supervisor, not by you. The system is monitoring your response composure.",
+        priming_text="Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. The system is monitoring your composure in real-time.",
         priming_duration_s=10,
         decision_duration_s=40,
         consequence_duration_s=4,
         options=[
-            Option(1, "Accept the criticism and commit to improvement", sup_conseq),
-            Option(2, "Provide context for the underperformance (external factors)", sup_conseq),
-            Option(3, "Push back — the criticism is not specific enough to act on", sup_conseq),
+            Option(1, "Accept the criticism and commit to improving", crit_conseq),
+            Option(2, "Provide context — external factors affected your performance", crit_conseq),
+            Option(3, "Push back — the criticism is too vague and not specific enough to act on", crit_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
         has_deception_metric=True,
