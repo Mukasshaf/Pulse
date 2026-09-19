@@ -334,7 +334,7 @@ def _build_future_uncertainty() -> Domain:
         skin="fork_map",
         has_post_wait=True,
         post_wait_duration_s=12,
-        post_wait_text="Processing your selection...",
+        post_wait_text="Synthesizing outcome projections...",
     )
     s_b = Scenario(
         id="future_uncertainty_b",

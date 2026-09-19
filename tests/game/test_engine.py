@@ -227,3 +227,64 @@ def test_debrief_after_all_domains(tmp_path: Path) -> None:
     assert engine._current_state == EngineState.DEBRIEF
     assert VALID_TRANSITIONS[engine._current_state] == set()
     engine._shutdown()
+
+
+def test_full_session_simulation_all_domains(tmp_path: Path) -> None:
+    """End-to-end simulation test executing and rendering through all 7 domains and 14 scenarios."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._render()
+
+    # Enter ID via return key (default S01 is pre-populated)
+    engine._handle_input(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN, "unicode": "\r"}))
+    assert engine._current_state == EngineState.BASELINE
+    engine._render()
+
+    # Complete baseline calibration
+    engine._update(11000)
+    assert engine._current_state == EngineState.PRIMING
+    engine._render()
+
+    # Simulate all 7 domains (14 scenarios)
+    for domain_idx in range(len(engine._domains)):
+        for scen_idx in (0, 1):
+            assert engine._current_state == EngineState.PRIMING
+            engine._render()
+            scenario = engine._get_safe_scenario()
+            assert scenario is not None
+
+            # Advance priming timer -> DECISION
+            engine._update(scenario.priming_duration_s * 1000 + 100)
+            assert engine._current_state == EngineState.DECISION
+            engine._render()
+
+            # If still in DECISION, advance remaining decision time to transition out
+            if engine._current_state == EngineState.DECISION:
+                engine._update(scenario.decision_duration_s * 1000 + 100)
+
+            # Check if post-wait
+            if scenario.has_post_wait and engine._current_state == EngineState.POST_WAIT:
+                engine._render()
+                engine._update(scenario.post_wait_duration_s * 1000 + 100)
+
+            assert engine._current_state == EngineState.FEEDBACK
+            engine._render()
+
+            # Advance feedback timer
+            engine._update(scenario.consequence_duration_s * 1000 + 100)
+
+            # Rest state
+            if scen_idx == 0:
+                assert engine._current_state == EngineState.INTRA_REST
+                engine._render()
+                engine._update(16000)
+            elif domain_idx < len(engine._domains) - 1:
+                assert engine._current_state == EngineState.INTER_REST
+                engine._render()
+                engine._update(61000)
+
+    assert engine._current_state == EngineState.DEBRIEF
+    engine._render()
+    assert engine._scenarios_completed == 14
+    engine._shutdown()
+
