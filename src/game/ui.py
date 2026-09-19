@@ -19,8 +19,6 @@ from src.game.constants import (
     COLOR_TIMER_RED,
     DomainID,
     MIST_WRONG_FLASH_COLOR,
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
 )
 from src.game.scenario_logic import BARTRunner, MISTRunner, RewardAccumulator
 from src.game.scenarios import Scenario
@@ -200,14 +198,25 @@ class UIRenderer:
         pygame.draw.rect(self.screen, (40, 40, 50), (50, 75, self.width - 100, 10), border_radius=4)
         pygame.draw.rect(self.screen, effects.timer_bar_color, (50, 75, bar_w, 10), border_radius=4)
 
-        if mist_runner is not None:
-            self._draw_mist_decision(mist_runner, effects, selected_index)
-        elif bart_runner is not None:
-            self._draw_bart_decision(scenario, bart_runner, selected_index)
-        elif reward_runner is not None:
-            self._draw_reward_decision(scenario, reward_runner, effects, selected_index)
-        else:
-            self._draw_standard_decision(scenario, selected_index, effects)
+        rendered = self._render_skin(
+            scenario,
+            time_remaining_s,
+            selected_index,
+            effects,
+            mist_runner,
+            bart_runner,
+            reward_runner,
+            composure_fraction,
+        )
+        if not rendered:
+            if mist_runner is not None:
+                self._draw_mist_decision(mist_runner, effects, selected_index)
+            elif bart_runner is not None:
+                self._draw_bart_decision(scenario, bart_runner, selected_index)
+            elif reward_runner is not None:
+                self._draw_reward_decision(scenario, reward_runner, effects, selected_index)
+            else:
+                self._draw_standard_decision(scenario, selected_index, effects)
 
         if scenario.has_deception_metric:
             self.draw_evaluator_panel((self.width - 340, 105))
@@ -313,6 +322,148 @@ class UIRenderer:
             pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
             self._draw_text(opt.text, self.font_title, COLOR_TEXT_PRIMARY, (rect.centerx + 15, rect.centery), center=True)
+
+    def _render_skin(
+        self,
+        scenario: Scenario,
+        time_remaining_s: float,
+        selected_index: int | None,
+        effects: UIEffectState,
+        mist_runner: MISTRunner | None,
+        bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None,
+        composure_fraction: float | None,
+    ) -> bool:
+        """Dispatch rendering to a domain simulation skin. Return True if handled, False otherwise."""
+        if not scenario.skin:
+            return False
+        skin_method = getattr(self, f"_draw_skin_{scenario.skin}", None)
+        if skin_method is not None and callable(skin_method):
+            return bool(
+                skin_method(
+                    scenario,
+                    time_remaining_s,
+                    selected_index,
+                    effects,
+                    mist_runner,
+                    bart_runner,
+                    reward_runner,
+                    composure_fraction,
+                )
+            )
+        return False
+
+    def _draw_skin_exam_hall(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render exam_hall simulation skin (stub)."""
+        return False
+
+    def _draw_skin_misconduct_hearing(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render misconduct_hearing simulation skin (stub)."""
+        return False
+
+    def _draw_skin_group_chat(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render group_chat simulation skin (stub)."""
+        return False
+
+    def _draw_skin_team_kanban(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render team_kanban simulation skin (stub)."""
+        return False
+
+    def _draw_skin_reward_crate(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render reward_crate simulation skin (stub)."""
+        return False
+
+    def _draw_skin_document_workspace(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render document_workspace simulation skin (stub)."""
+        return False
+
+    def _draw_skin_tournament_bracket(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render tournament_bracket simulation skin (stub)."""
+        return False
+
+    def _draw_skin_social_analytics(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render social_analytics simulation skin (stub)."""
+        return False
+
+    def _draw_skin_portal_log(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render portal_log simulation skin (stub)."""
+        return False
+
+    def _draw_skin_code_diff(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render code_diff simulation skin (stub)."""
+        return False
+
+    def _draw_skin_fork_map(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render fork_map simulation skin (stub)."""
+        return False
+
+    def _draw_skin_notification_stack(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render notification_stack simulation skin (stub)."""
+        return False
+
+    def _draw_skin_defense_stage(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render defense_stage simulation skin (stub)."""
+        return False
+
+    def _draw_skin_classroom_critique(
+        self, scenario: Scenario, time_remaining_s: float, selected_index: int | None,
+        effects: UIEffectState, mist_runner: MISTRunner | None, bart_runner: BARTRunner | None,
+        reward_runner: RewardAccumulator | None, composure_fraction: float | None,
+    ) -> bool:
+        """Render classroom_critique simulation skin (stub)."""
+        return False
 
     def draw_peer_average_bar(self, user_frac: float, peer_frac: float) -> None:
         """Render MIST social comparison progress bars."""

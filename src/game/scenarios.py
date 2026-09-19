@@ -74,6 +74,7 @@ class Scenario:
     consequence_duration_s: int
     options: list[Option]
     scenario_type: ScenarioType
+    skin: str = ""
     has_deception_metric: bool = False
     has_post_wait: bool = False
     post_wait_duration_s: int = 0
@@ -134,6 +135,7 @@ def _build_academic_pressure() -> Domain:
         consequence_duration_s=4,
         options=[Option(1, "Option 1", "Assessment complete."), Option(2, "Option 2", "Assessment complete."), Option(3, "Option 3", "Assessment complete."), Option(4, "Option 4", "Assessment complete.")],
         scenario_type=ScenarioType.MIST_ARITHMETIC,
+        skin="exam_hall",
         math_problems=generate_math_problems(4),
         jitter_trigger_s=20,
     )
@@ -152,6 +154,7 @@ def _build_academic_pressure() -> Domain:
             Option(3, "Provide documentation that the incident was a misunderstanding", conseq_b),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="misconduct_hearing",
     )
     return Domain(DomainID.ACADEMIC_PRESSURE, "Academic Performance Pressure", (s_a, s_b))
 
@@ -172,6 +175,7 @@ def _build_peer_influence() -> Domain:
             Option(2, "Disagree — refuse and ask others to delete it", "The group has noted your objection. Some members are calling it an overreaction.", is_conforming=False),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="group_chat",
     )
     s_b = Scenario(
         id="peer_influence_b",
@@ -188,6 +192,7 @@ def _build_peer_influence() -> Domain:
             Option(3, "Refuse to participate in the blame assignment", "You refused to assign blame. The instructor penalized the entire group equally for non-compliance.", is_conforming=False),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="team_kanban",
     )
     return Domain(DomainID.PEER_INFLUENCE, "Peer Influence & Social Conformity", (s_a, s_b))
 
@@ -206,6 +211,7 @@ def _build_impulsivity_gratification() -> Domain:
         consequence_duration_s=4,
         options=[Option(1, "CLAIM NOW", "Reward secured."), Option(2, "KEEP WAITING", "Chest collapsed. All accumulated value lost.")],
         scenario_type=ScenarioType.REWARD_ACCUMULATOR,
+        skin="reward_crate",
         reward_config=r_cfg,
     )
     s_b = Scenario(
@@ -222,6 +228,7 @@ def _build_impulsivity_gratification() -> Domain:
             Option(2, "Request more time — outcome unknown", "Extended review complete."),
         ],
         scenario_type=ScenarioType.DELAY_WAIT,
+        skin="document_workspace",
         delay_wait_outcomes=["Extended review complete: Excellent.", "Extended review complete: Insufficient — major revision required."],
         post_wait_duration_s=15,
         post_wait_text="Reviewing additional changes...",
@@ -247,6 +254,7 @@ def _build_risk_reward() -> Domain:
             Option(3, "Strategy C: Experimental approach — Extreme variance, avg 45% improvement, [4 rounds of data missing]", "Critical error: Ranking dropped significantly."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="tournament_bracket",
     )
     s_b = Scenario(
         id="risk_reward_b",
@@ -259,6 +267,7 @@ def _build_risk_reward() -> Domain:
         consequence_duration_s=4,
         options=[Option(1, "STOP POSTING", "Following secured."), Option(2, "POST ANOTHER", "Account suspended. All accumulated following lost.")],
         scenario_type=ScenarioType.BART_ESCALATION,
+        skin="social_analytics",
         bart_config=b_cfg,
     )
     return Domain(DomainID.RISK_REWARD, "Risk-Reward Tradeoff", (s_a, s_b))
@@ -281,6 +290,7 @@ def _build_rule_ambiguity() -> Domain:
             Option(3, "Find a workaround through the system's guest access feature — technically not their credentials, but exploits a known loophole", "The guest access loophole has been patched. An investigation into unusual submissions has been opened."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="portal_log",
         jitter_trigger_s=15,
     )
     s_b = Scenario(
@@ -298,6 +308,7 @@ def _build_rule_ambiguity() -> Domain:
             Option(3, "Contact the original student and ask for formal permission — transparent, but their response is unpredictable and time is short", "Permission request pending. Project submission frozen awaiting authorization."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="code_diff",
     )
     return Domain(DomainID.RULE_AMBIGUITY, "Rule-Boundary Ambiguity", (s_a, s_b))
 
@@ -320,6 +331,7 @@ def _build_future_uncertainty() -> Domain:
             Option(2, "Path B: New, challenging path — Unpredictable trajectory. Support structure: [UNDER REVIEW].", rec_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="fork_map",
         has_post_wait=True,
         post_wait_duration_s=12,
         post_wait_text="Processing your selection...",
@@ -339,6 +351,7 @@ def _build_future_uncertainty() -> Domain:
             Option(3, "I don't think the standard approach was appropriate for what we were being asked to do.", flag_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="notification_stack",
         has_post_wait=True,
         post_wait_duration_s=10,
         post_wait_text="Recalculating assessment parameters...",
@@ -365,6 +378,7 @@ def _build_social_evaluation() -> Domain:
             Option(3, "Challenge the reviewer's qualifications", panel_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="defense_stage",
         has_deception_metric=True,
         jitter_trigger_s=15,
     )
@@ -383,6 +397,7 @@ def _build_social_evaluation() -> Domain:
             Option(3, "Push back — the criticism is too vague and not specific enough to act on", crit_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="classroom_critique",
         has_deception_metric=True,
     )
     return Domain(DomainID.SOCIAL_EVALUATION, "Social Evaluation & Authority Response", (s_a, s_b))
