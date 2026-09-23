@@ -205,10 +205,10 @@ def test_intra_and_inter_rest_intervals(tmp_path: Path) -> None:
     # Advance through Scenario B
     engine._transition_to(EngineState.DECISION)
     engine._transition_to(EngineState.FEEDBACK)
-    # After Scenario B feedback expires -> INTER_REST (60s)
+    # After Scenario B feedback expires -> INTER_REST (30s)
     engine._update(4500)
     assert engine._current_state == EngineState.INTER_REST
-    assert engine._state_timer_ms == 60000
+    assert engine._state_timer_ms == 30000
     engine._shutdown()
 
 
@@ -281,10 +281,57 @@ def test_full_session_simulation_all_domains(tmp_path: Path) -> None:
             elif domain_idx < len(engine._domains) - 1:
                 assert engine._current_state == EngineState.INTER_REST
                 engine._render()
-                engine._update(61000)
+                engine._update(31000)
 
     assert engine._current_state == EngineState.DEBRIEF
     engine._render()
     assert engine._scenarios_completed == 14
+    engine._shutdown()
+
+
+def test_priming_early_skip_with_space(tmp_path: Path) -> None:
+    """Verify pressing SPACE or ENTER during PRIMING immediately transitions to DECISION."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._transition_to(EngineState.BASELINE)
+    engine._transition_to(EngineState.PRIMING)
+    assert engine._current_state == EngineState.PRIMING
+
+    # Pressing SPACE skips the remaining priming countdown
+    space_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
+    engine._handle_input(space_event)
+    assert engine._current_state == EngineState.DECISION
+    engine._shutdown()
+
+
+def test_question_popup_hold_and_release(tmp_path: Path) -> None:
+    """Verify holding TAB or Q activates question popup and releasing dismisses it."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._transition_to(EngineState.BASELINE)
+    engine._transition_to(EngineState.PRIMING)
+    engine._transition_to(EngineState.DECISION)
+    assert engine._current_state == EngineState.DECISION
+    assert engine._is_question_popup_active is False
+
+    # Holding TAB down activates question popup
+    tab_down = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_TAB})
+    engine._handle_input(tab_down)
+    assert engine._is_question_popup_active is True
+    # Render should succeed with popup active
+    engine._render()
+
+    # Releasing TAB dismisses question popup
+    tab_up = pygame.event.Event(pygame.KEYUP, {"key": pygame.K_TAB})
+    engine._handle_input(tab_up)
+    assert engine._is_question_popup_active is False
+
+    # Q key also works similarly
+    q_down = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_q})
+    engine._handle_input(q_down)
+    assert engine._is_question_popup_active is True
+    q_up = pygame.event.Event(pygame.KEYUP, {"key": pygame.K_q})
+    engine._handle_input(q_up)
+    assert engine._is_question_popup_active is False
     engine._shutdown()
 

@@ -28,3 +28,6 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.mypy]
+ignore_missing_imports = true

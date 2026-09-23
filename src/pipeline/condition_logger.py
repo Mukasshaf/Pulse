@@ -40,7 +40,7 @@ def run_session(subject_id: str, output_path: str) -> None:
         subject_id:   Subject identifier string, e.g. "HW01".
         output_path:  Path where the condition log CSV will be written.
     """
-    rows = [("condition", "start_unix_ms", "end_unix_ms")]
+    rows: list[tuple[str, str | int, str | int]] = [("condition", "start_unix_ms", "end_unix_ms")]
     t_ms = int(time.time() * 1000)
 
     print(f"\n[condition_logger] Subject: {subject_id}")

@@ -4,9 +4,12 @@ from __future__ import annotations
 from enum import StrEnum
 
 from src.game.constants import (
+    BRIGHTNESS_FLICKER_MAX_HZ,
+    COMPASS_SPIN_MAX_RPM,
     DRONE_VOLUME,
     FPS,
     JITTER_MAX_PX,
+    NOTIFICATION_PULSE_HZ,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     VALID_TRANSITIONS,
@@ -35,7 +38,7 @@ def test_enum_member_counts() -> None:
     assert len(DomainID) == 7
     assert len(EngineState) == 10
     assert len(ScenarioType) == 5
-    assert len(EventType) == 19
+    assert len(EventType) == 22
 
 
 def test_valid_transitions_completeness() -> None:
@@ -53,6 +56,9 @@ def test_systemic_constants_bounds() -> None:
     assert isinstance(FPS, int)
     assert JITTER_MAX_PX <= 3
     assert DRONE_VOLUME <= 0.30
+    assert BRIGHTNESS_FLICKER_MAX_HZ <= 2.0
+    assert NOTIFICATION_PULSE_HZ <= 1.0
+    assert COMPASS_SPIN_MAX_RPM <= 4.0
 
 
 def test_exception_hierarchy() -> None:

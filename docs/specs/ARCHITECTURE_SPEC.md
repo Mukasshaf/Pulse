@@ -147,7 +147,7 @@ scenario_logic.py
   ├── class MISTRunner — handles rapid-fire arithmetic (Domain 1, Scenario A)
   ├── class BARTRunner — handles escalating pump mechanic (Domain 4, Scenario B)
   ├── class RewardAccumulator — handles growing reward + collapse (Domain 3, Scenario A)
-  └── class DelayWaitRunner — handles post-decision wait screen (Domain 6)
+  └── class DelayWaitRunner — handles post-decision wait screen (Domain 6, and impulsivity_gratification_b)
 
 ui.py
   │
@@ -245,10 +245,11 @@ queue.Queue(maxsize=256)
     ▼
 GameEngine (main thread, once per frame):
     │ bridge.get_latest_sample() → drains queue, returns latest
-    │ bridge.get_mpu_variance()  → returns rolling Z-axis variance
+    │ bridge.get_mpu_variance()  → returns rolling 1s variance of 3-axis magnitude sqrt(x^2+y^2+z^2)
     │
     ├── Appends sensor data to event CSV row (if sample available)
-    └── Updates composure bar (social_evaluation domain only, if MPU variance > threshold)
+    └── Updates composure bar (social_evaluation domain only, if MPU variance > threshold
+        sustained for >=3 consecutive samples with 5s cooldown)
 ```
 
 ### 4.3 Synchronization Contract
@@ -298,11 +299,12 @@ GameEngine (main thread, once per frame):
 │  │                 │  Emits: DECISION_PRESENTED, OPTION_SELECTED│
 │  │                 │         or TIMEOUT_NO_RESPONSE             │
 │  └──────┬──────────┘                                            │
-│         │ [option selected OR timer expires]                    │
+│         │ [timer expires — selection held for full duration]     │
 │         ▼                                                       │
 │  ┌─────────────────────┐                                        │
-│  │ STATE_POST_WAIT     │  ONLY for future_uncertainty scenarios (10-12s)│
-│  │ (conditional)       │  "Processing..." spinner, no info      │
+│  │ STATE_POST_WAIT     │  future_uncertainty (10-12s) or        │
+│  │ (conditional)       │  impulsivity_gratification_b (15s)     │
+│  │                     │  "Processing..." spinner, no info      │
 │  └──────┬──────────────┘                                        │
 │         │                                                       │
 │         ▼                                                       │
@@ -334,9 +336,12 @@ GameEngine (main thread, once per frame):
 ### State Transition Rules
 1. **No state may be skipped** — every session passes through every state in order.
 2. **No backward transitions** — the state machine is strictly forward-only. There is no "retry" or "go back."
-3. **Timeout always advances** — if the decision timer expires, the engine logs `TIMEOUT_NO_RESPONSE`, displays the timeout consequence text ("The system has made a decision for you"), and advances to `STATE_FEEDBACK`.
-4. **`STATE_POST_WAIT` is entered only when `scenario.has_post_wait is True`** — this applies exclusively to `future_uncertainty` domain scenarios.
-5. **`STATE_INTRA_REST` vs `STATE_INTER_REST`** — the engine tracks whether it just completed Scenario A (→ intra, 15s) or Scenario B (→ inter, 60s, or → debrief if last domain).
+3. **Fixed DECISION duration (C1)** — `STATE_DECISION` always holds for the full `decision_duration_s`. A valid keypress immediately locks in the selection and logs `OPTION_SELECTED` (recording the precise `response_time_ms`), but does NOT cause an early exit. The UI displays the locked-in choice (selected card highlighted, others dimmed) for the remainder of the timer. Transition to `STATE_POST_WAIT` or `STATE_FEEDBACK` occurs exclusively when the timer reaches 0. This guarantees a continuous active window (≥60s total active epoch) to satisfy the Random Forest classifier's HRV/EDA windowing requirement.
+4. **Timeout always advances** — if the decision timer expires without a choice, the engine logs `TIMEOUT_NO_RESPONSE`, displays the timeout consequence text ("The system has made a decision for you"), and advances to `STATE_FEEDBACK`.
+5. **`STATE_POST_WAIT` is entered when post-wait condition is met** — applies to `future_uncertainty` scenarios (`has_post_wait=True`, 10–12s) and conditionally to `impulsivity_gratification_b` (15s if Key 2 "Request more time" was selected).
+6. **`STATE_INTRA_REST` vs `STATE_INTER_REST`** — the engine tracks whether it just completed Scenario A (→ intra, 15s) or Scenario B (→ inter, 60s, or → debrief if last domain).
+7. **Same-Frame Event Precedence (M2)** — In every frame, `_handle_input()` processes all pending OS and keyboard events before `_update()` decrements timers. A valid keypress in the same frame as timer expiry is logged as `OPTION_SELECTED`, never `TIMEOUT_NO_RESPONSE`.
+8. **Window Focus Loss Handling (M3)** — If the Pygame window loses OS focus (`pygame.WINDOWFOCUSLOST`), timers and audio drones freeze immediately, and `FOCUS_LOST` is logged. Upon focus restoration (`pygame.WINDOWFOCUSGAINED`), `FOCUS_GAINED` is logged, and timers resume.
 
 ---
 

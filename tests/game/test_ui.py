@@ -481,3 +481,15 @@ def test_draw_decision_renders_all_scenarios(
             # Ensure drawing did not crash and screen surface is valid
             assert renderer.screen.get_width() == 1280
 
+
+def test_draw_question_popup_renders_all_scenarios(
+    screen: pygame.Surface,
+    domain_registry: list[Domain],
+) -> None:
+    """Verify draw_question_popup modal renders without errors for all 14 scenarios."""
+    renderer = UIRenderer(screen)
+    for domain in domain_registry:
+        for scenario in domain.scenarios:
+            renderer.draw_question_popup(scenario)
+            assert renderer.screen.get_width() == 1280
+
