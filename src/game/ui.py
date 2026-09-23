@@ -80,12 +80,19 @@ class UIRenderer:
         color: tuple[int, int, int],
         pos: tuple[int, int],
         center: bool = False,
+        center_y: bool = False,
+        midleft: bool = False,
+        midright: bool = False,
     ) -> pygame.Rect:
-        """Render a single line of text."""
+        """Render a single line of text with optional centering or alignment."""
         surf = font.render(text, True, color)
         rect = surf.get_rect()
         if center:
             rect.center = pos
+        elif midleft or center_y:
+            rect.midleft = pos
+        elif midright:
+            rect.midright = pos
         else:
             rect.topleft = pos
         self.screen.blit(surf, rect)
@@ -98,6 +105,8 @@ class UIRenderer:
         color: tuple[int, int, int],
         rect: pygame.Rect,
         spacing: int = 4,
+        center_v: bool = False,
+        center_h: bool = False,
     ) -> int:
         """Render multi-line text wrapped within a bounding rect with overflow protection. Returns final y."""
         paragraphs = text.split("\n")
@@ -129,31 +138,33 @@ class UIRenderer:
         total_h = len(lines) * (line_h + spacing) - spacing
         # Auto downscale font if lines exceed container height
         if rect.height > 0 and total_h > rect.height:
-            if active_font == self.font_hero:
-                active_font = self.font_title
-                lines = _wrap_lines(active_font)
-                line_h = active_font.get_linesize()
-                total_h = len(lines) * (line_h + spacing) - spacing
-            if total_h > rect.height and active_font == self.font_title:
-                active_font = self.font_body
-                lines = _wrap_lines(active_font)
-                line_h = active_font.get_linesize()
-                total_h = len(lines) * (line_h + spacing) - spacing
-            if total_h > rect.height and active_font == self.font_body:
-                active_font = self.font_small
-                lines = _wrap_lines(active_font)
-                line_h = active_font.get_linesize()
+            for fallback_font in (self.font_title, self.font_body, self.font_small, self.font_mono_small):
+                if active_font != fallback_font and fallback_font.get_linesize() < active_font.get_linesize():
+                    test_lines = _wrap_lines(fallback_font)
+                    test_total = len(test_lines) * (fallback_font.get_linesize() + spacing) - spacing
+                    active_font = fallback_font
+                    lines = test_lines
+                    line_h = active_font.get_linesize()
+                    total_h = test_total
+                    if total_h <= rect.height:
+                        break
 
-        y = rect.top
+        # Calculate starting y position (optionally vertically centered)
+        if center_v and rect.height > 0 and total_h < rect.height:
+            y = rect.top + max(0, (rect.height - total_h) // 2)
+        else:
+            y = rect.top
+
         for line in lines:
             if not line:
                 y += line_h // 2 + spacing
                 continue
             # Clamping overflow: do not draw outside the container bottom
-            if rect.height > 0 and y + line_h > rect.bottom + 4:
+            if rect.height > 0 and y + line_h > rect.bottom + 6:
                 break
             surf = active_font.render(line, True, color)
-            self.screen.blit(surf, (rect.left, y))
+            line_x = rect.centerx - surf.get_width() // 2 if center_h else rect.left
+            self.screen.blit(surf, (line_x, y))
             y += surf.get_height() + spacing
         return y
 
@@ -316,7 +327,7 @@ class UIRenderer:
         self._draw_text(scenario.title, self.font_title, COLOR_TEXT_PRIMARY, (50 + jx, 30 + jy))
 
         # Hold TAB / Q question popup hint pill
-        hint_rect = pygame.Rect(self.width - 290 + jx, 28 + jy, 240, 28)
+        hint_rect = pygame.Rect(self.width - 410 + jx, 28 + jy, 230, 28)
         pygame.draw.rect(self.screen, (22, 28, 42), hint_rect, border_radius=6)
         pygame.draw.rect(self.screen, (60, 75, 110), hint_rect, width=1, border_radius=6)
         self._draw_text("[ HOLD TAB: VIEW QUESTION ]", self.font_mono_small, (150, 180, 220), hint_rect.center, center=True)
@@ -505,26 +516,26 @@ class UIRenderer:
             pygame.draw.line(self.screen, (30, 33, 46), (px, 90), (px, 215), 1)
 
         # Analog Wall Clock at top-right (counts down with timer)
-        clock_cx = self.width - 65
-        clock_cy = 40
-        clock_radius = 24
+        clock_cx = self.width - 55
+        clock_cy = 42
+        clock_radius = 22
         pygame.draw.circle(self.screen, (75, 80, 95), (clock_cx, clock_cy), clock_radius, width=3)
         pygame.draw.circle(self.screen, (235, 235, 230), (clock_cx, clock_cy), clock_radius - 3)
         for hour_idx in range(12):
             ang = hour_idx * (math.pi / 6.0)
-            mx = clock_cx + int(math.cos(ang) * (clock_radius - 6))
-            my = clock_cy + int(math.sin(ang) * (clock_radius - 6))
+            mx = clock_cx + int(math.cos(ang) * (clock_radius - 5))
+            my = clock_cy + int(math.sin(ang) * (clock_radius - 5))
             pygame.draw.circle(self.screen, (90, 95, 105), (mx, my), 1)
 
         duration = max(1.0, float(scenario.decision_duration_s))
         time_frac = max(0.0, min(1.0, time_remaining_s / duration))
         hand_ang = -math.pi / 2.0 + (1.0 - time_frac) * 2.0 * math.pi
-        hx = clock_cx + int(math.cos(hand_ang) * 15)
-        hy = clock_cy + int(math.sin(hand_ang) * 15)
+        hx = clock_cx + int(math.cos(hand_ang) * 14)
+        hy = clock_cy + int(math.sin(hand_ang) * 14)
         pygame.draw.line(self.screen, COLOR_TIMER_RED, (clock_cx, clock_cy), (hx, hy), 2)
         pygame.draw.circle(self.screen, (40, 40, 50), (clock_cx, clock_cy), 3)
         # Digital readout to the left of analog clock
-        self._draw_text(f"{time_remaining_s:.1f}s", self.font_title, effects.timer_bar_color, (clock_cx - 48, clock_cy), center=True)
+        self._draw_text(f"{time_remaining_s:.1f}s", self.font_title, effects.timer_bar_color, (clock_cx - 56, clock_cy), center=True)
 
         # Pacing Supervisor (Invigilator) Silhouette along back wall if time_remaining_s <= 20.0
         if time_remaining_s <= 20.0:
@@ -666,18 +677,18 @@ class UIRenderer:
         titles = ["PROF. DR. VANCE (CHAIR)", "DEAN OF ACADEMIC AFFAIRS", "STUDENT ADVOCATE (OBSERVER)"]
         for k in range(3):
             mx = member_xs[k]
-            head_y = 175
+            head_y = 166
             # Silhouette Torso (Grayscale suit)
             torso_pts = [
-                (mx - 48, 240),
-                (mx + 48, 240),
-                (mx + 32, 194),
-                (mx - 32, 194),
+                (mx - 48, 226),
+                (mx + 48, 226),
+                (mx + 32, 186),
+                (mx - 32, 186),
             ]
             pygame.draw.polygon(self.screen, (34, 36, 46), torso_pts)
             # White collar & tie
-            pygame.draw.polygon(self.screen, (160, 165, 175), [(mx - 10, 194), (mx + 10, 194), (mx, 210)])
-            pygame.draw.line(self.screen, (55, 58, 68), (mx, 202), (mx, 218), 3)
+            pygame.draw.polygon(self.screen, (160, 165, 175), [(mx - 10, 186), (mx + 10, 186), (mx, 202)])
+            pygame.draw.line(self.screen, (55, 58, 68), (mx, 196), (mx, 212), 3)
             # Silhouette Head
             pygame.draw.circle(self.screen, (50, 54, 66), (mx, head_y), 20)
             pygame.draw.circle(self.screen, (38, 40, 50), (mx, head_y), 17)
@@ -686,19 +697,19 @@ class UIRenderer:
             pygame.draw.line(self.screen, (75, 80, 95), (mx + 3, head_y - 2), (mx + 9, head_y - 2), 2)
             pygame.draw.line(self.screen, (80, 85, 100), (mx - 6, head_y + 7), (mx + 6, head_y + 7), 2)
 
-        # Imposing Dark Committee Table across Mid-Ground
-        table_rect = pygame.Rect(60, 222, self.width - 120, 60)
+        # Imposing Dark Committee Table across Mid-Ground (elevated to clear observation banner)
+        table_rect = pygame.Rect(60, 206, self.width - 120, 56)
         pygame.draw.rect(self.screen, (28, 26, 34), table_rect, border_radius=4)
         pygame.draw.rect(self.screen, (55, 52, 65), table_rect, width=2, border_radius=4)
-        pygame.draw.line(self.screen, (85, 80, 95), (65, 224), (self.width - 65, 224), 2)
+        pygame.draw.line(self.screen, (85, 80, 95), (65, 208), (self.width - 65, 208), 2)
 
         for k in range(3):
             mx = member_xs[k]
             # Case dossier folders on table
-            pygame.draw.rect(self.screen, (190, 180, 155), (mx - 85, 232, 24, 18), border_radius=2)
-            pygame.draw.rect(self.screen, (180, 45, 45), (mx - 85, 232, 6, 18), border_radius=1)
+            pygame.draw.rect(self.screen, (190, 180, 155), (mx - 85, 214, 24, 18), border_radius=2)
+            pygame.draw.rect(self.screen, (180, 45, 45), (mx - 85, 214, 6, 18), border_radius=1)
             # Nameplate
-            plate_rect = pygame.Rect(mx - 100, 254, 200, 22)
+            plate_rect = pygame.Rect(mx - 110, 234, 220, 22)
             pygame.draw.rect(self.screen, (40, 38, 48), plate_rect, border_radius=2)
             pygame.draw.rect(self.screen, (90, 85, 75), plate_rect, width=1, border_radius=2)
             self._draw_text(titles[k], self.font_small, (180, 175, 160), plate_rect.center, center=True)
@@ -706,14 +717,14 @@ class UIRenderer:
         self._draw_text(
             "COMMITTEE PANEL IS ACTIVELY OBSERVING RESPONDENT TESTIMONY (UNREACTING)",
             self.font_small,
-            (115, 120, 135),
-            (self.width // 2, 208),
+            (120, 125, 140),
+            (self.width // 2, 278),
             center=True,
         )
 
         # Hearing Statement Terminal (Foreground)
-        term_y = 292
-        term_h = 412
+        term_y = 295
+        term_h = 405
         term_rect = pygame.Rect(60 + jx, term_y + jy, self.width - 120, term_h)
         self._draw_card(term_rect, (60, 65, 85), bg_color=(20, 22, 30))
 
@@ -724,15 +735,15 @@ class UIRenderer:
             "OFFICIAL STATEMENT TERMINAL — FORMAL SUBMISSION DRAFT",
             self.font_small,
             COLOR_ACCENT_CYAN,
-            (top_bar.left + 20, top_bar.centery - 8),
-            center=False,
+            (top_bar.left + 20, top_bar.centery),
+            midleft=True,
         )
         self._draw_text(
             "BINDING SUBMISSION",
             self.font_small,
             COLOR_TIMER_RED,
-            (top_bar.right - 170, top_bar.centery - 8),
-            center=False,
+            (top_bar.right - 20, top_bar.centery),
+            midright=True,
         )
 
         # Instruction text
@@ -745,7 +756,7 @@ class UIRenderer:
 
         # Participant Statement Options (Keys 1-3)
         start_opt_y = term_rect.top + 74
-        opt_card_h = 82
+        opt_card_h = 80
         opt_gap = 10
         for i, opt in enumerate(scenario.options):
             oy = start_opt_y + i * (opt_card_h + opt_gap)
@@ -760,8 +771,8 @@ class UIRenderer:
             pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
 
-            text_rect = pygame.Rect(badge.right + 20, orect.top + 12, orect.width - 85, orect.height - 24)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=4)
+            text_rect = pygame.Rect(badge.right + 20, orect.top + 10, orect.width - 85, orect.height - 20)
+            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=4, center_v=True)
 
         self._draw_text(
             "PRESS KEY [1], [2], OR [3] TO LOG FORMAL PLEA. DECISION IS IRREVOCABLE.",
@@ -783,9 +794,9 @@ class UIRenderer:
 
         # Device Frame (Smartphone Mockup in screen center)
         frame_w = 560
-        frame_h = 615
+        frame_h = 608
         frame_x = (self.width - frame_w) // 2 + jx
-        frame_y = 80 + jy
+        frame_y = 94 + jy
         frame_rect = pygame.Rect(frame_x, frame_y, frame_w, frame_h)
 
         # Drop shadow
@@ -808,9 +819,9 @@ class UIRenderer:
         self._draw_text("Maya, Jake, Rohan, Tess, You", self.font_small, (135, 140, 155), (frame_x + 55, frame_y + 32))
 
         # Online indicator
-        online_dot_x = frame_x + frame_w - 25
-        pygame.draw.circle(self.screen, COLOR_TIMER_GREEN, (online_dot_x, frame_y + 27), 5)
-        self._draw_text("4 online", self.font_small, COLOR_TIMER_GREEN, (online_dot_x - 12, frame_y + 27), center=True)
+        dot_cx = frame_x + frame_w - 85
+        pygame.draw.circle(self.screen, COLOR_TIMER_GREEN, (dot_cx, frame_y + 27), 4)
+        self._draw_text("4 online", self.font_small, COLOR_TIMER_GREEN, (dot_cx + 10, frame_y + 27), midleft=True)
 
         # Public Visibility Cue banner inside chat
         vis_banner = pygame.Rect(frame_x + 24, frame_y + 62, frame_w - 48, 26)
@@ -1035,7 +1046,7 @@ class UIRenderer:
             tag_box = pygame.Rect(trect.left + 8, trect.bottom - 24, trect.width - 16, 18)
             pygame.draw.rect(self.screen, (55, 18, 24), tag_box, border_radius=3)
             pygame.draw.rect(self.screen, COLOR_TIMER_RED, tag_box, width=1, border_radius=3)
-            self._draw_text("Assigned Failure Attribution: YOU", self.font_mono_small, (255, 110, 110), tag_box.center, center=True)
+            self._draw_text("Failure Attribution: YOU", self.font_mono_small, (255, 110, 110), tag_box.center, center=True)
 
         # Participant Action Panel (Foreground)
         panel_y = 372 + jy
@@ -1050,15 +1061,15 @@ class UIRenderer:
             "FORMAL DISCIPLINARY RESPONSE // MANDATORY PLEA ENTRY",
             self.font_small,
             COLOR_ACCENT_CYAN,
-            (top_bar.left + 18, top_bar.centery - 8),
-            center=False,
+            (top_bar.left + 18, top_bar.centery),
+            midleft=True,
         )
         self._draw_text(
             "FINAL SUBMISSION",
             self.font_small,
             COLOR_TIMER_AMBER,
-            (top_bar.right - 150, top_bar.centery - 8),
-            center=False,
+            (top_bar.right - 18, top_bar.centery),
+            midright=True,
         )
 
         self._draw_text(
@@ -1091,7 +1102,7 @@ class UIRenderer:
             self._draw_text(str(opt.key), self.font_title, badge_fg, badge.center, center=True)
 
             text_rect = pygame.Rect(badge.right + 18, orect.top + 8, orect.width - 180, orect.height - 16)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=3)
+            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=3, center_v=True)
 
             tag_label = tag_labels[i] if i < len(tag_labels) else ""
             tag_color = tag_colors[i] if i < len(tag_colors) else COLOR_TEXT_SECONDARY
@@ -1134,25 +1145,29 @@ class UIRenderer:
 
         # Background vault chamber framing
         header_rect = pygame.Rect(50, 95, self.width - 100, 32)
-        self._draw_text("CHAMBER: VAULT-03 // DIGITAL MARSHMALLOW PARADIGM", self.font_small, (130, 140, 165), (header_rect.left, header_rect.centery))
-        self._draw_text("EXPONENTIAL VALUE MULTIPLIER", self.font_small, COLOR_ACCENT_CYAN, (header_rect.right - 220, header_rect.centery))
+        self._draw_text("CHAMBER: VAULT-03 // DIGITAL MARSHMALLOW PARADIGM", self.font_small, (130, 140, 165), (header_rect.left + 14, header_rect.centery), midleft=True)
+        self._draw_text("EXPONENTIAL VALUE MULTIPLIER", self.font_small, COLOR_ACCENT_CYAN, (header_rect.right - 14, header_rect.centery), midright=True)
         pygame.draw.line(self.screen, (35, 40, 58), (50, 130), (self.width - 50, 130), 1)
 
         # Ambient floor horizon line and perspective guide
         pygame.draw.line(self.screen, (28, 32, 46), (0, 430), (self.width, 430), 1)
 
-        # 1. Left Wall: Vertical Stability Gauge
-        gx = 70 + ox
-        gy = 150 + oy
-        gw = 32
-        gh = 260
+        # 1. Left Wall: Vertical Stability Gauge (positioned cleanly below chamber line y=130)
+        card_w = 130
+        card_left = 50 + ox
+        card_top = 146 + oy
+        card_h = 334
+        gauge_card = pygame.Rect(card_left, card_top, card_w, card_h)
+        self._draw_card(gauge_card, border_color=(45, 50, 72), bg_color=(16, 18, 26))
+        self._draw_text("CORE STABILITY", self.font_small, COLOR_TEXT_SECONDARY, (gauge_card.centerx, card_top + 18), center=True)
+
+        # Gauge track centered in card
+        gw = 36
+        gh = 210
+        gx = gauge_card.centerx - gw // 2
+        gy = card_top + 38
         stability_frac = max(0.0, min(1.0, 1.0 - instability))
 
-        gauge_card = pygame.Rect(gx - 12, gy - 32, gw + 24, gh + 72)
-        self._draw_card(gauge_card, border_color=(45, 50, 72), bg_color=(16, 18, 26))
-        self._draw_text("CORE STABILITY", self.font_small, COLOR_TEXT_SECONDARY, (gx + gw // 2, gy - 16), center=True)
-
-        # Gauge track
         pygame.draw.rect(self.screen, (22, 25, 36), (gx, gy, gw, gh), border_radius=4)
         pygame.draw.rect(self.screen, (48, 54, 76), (gx, gy, gw, gh), width=2, border_radius=4)
 
@@ -1176,22 +1191,22 @@ class UIRenderer:
 
         # Cracks on gauge frame when instability increases
         if instability > 0.35:
-            crack_pts1 = [(gx - 3, gy + 70), (gx + 12, gy + 88), (gx + 7, gy + 105), (gx + 25, gy + 120)]
+            crack_pts1 = [(gx - 3, gy + 55), (gx + 12, gy + 72), (gx + 7, gy + 88), (gx + 25, gy + 102)]
             pygame.draw.lines(self.screen, (255, 90, 90), False, crack_pts1, 2)
         if instability > 0.65:
-            crack_pts2 = [(gx + gw + 3, gy + 160), (gx + 18, gy + 180), (gx + 22, gy + 198), (gx + 6, gy + 215)]
+            crack_pts2 = [(gx + gw + 3, gy + 135), (gx + 18, gy + 152), (gx + 22, gy + 168), (gx + 6, gy + 182)]
             pygame.draw.lines(self.screen, (255, 60, 60), False, crack_pts2, 2)
 
         pct_text = f"{int(stability_frac * 100)}%"
-        self._draw_text(pct_text, self.font_body, meter_col, (gx + gw // 2, gy + gh + 16), center=True)
+        self._draw_text(pct_text, self.font_body, meter_col, (gauge_card.centerx, gy + gh + 16), center=True)
 
         status_lbl = "CRITICAL" if instability > 0.75 else ("UNSTABLE" if instability > 0.4 else "SECURE")
         status_col = COLOR_TIMER_RED if instability > 0.75 else (COLOR_TIMER_AMBER if instability > 0.4 else COLOR_TIMER_GREEN)
-        self._draw_text(status_lbl, self.font_small, status_col, (gx + gw // 2, gy + gh + 34), center=True)
+        self._draw_text(status_lbl, self.font_small, status_col, (gauge_card.centerx, gy + gh + 38), center=True)
 
         # 2. Central Futuristic Supply Chest
         cx = self.width // 2 + ox
-        cy = 310 + oy
+        cy = 348 + oy
 
         # Accent Glow transition: COLOR_ACCENT_CYAN (0, 229, 255) -> COLOR_TIMER_AMBER (255, 179, 0)
         if instability < 0.8:
@@ -1294,12 +1309,13 @@ class UIRenderer:
             self._draw_text("ALL ACCUMULATED VALUE LOST", self.font_body, (220, 80, 80), (cx, cy + 30), center=True)
 
         # 3. Multiplier Counter Floating Above Chest
-        counter_cy = chest_rect.top - 46
-        val_str = f"x{current_val}" if not is_collapsed else "0"
-        counter_card = pygame.Rect(cx - 160, counter_cy - 28, 320, 56)
+        counter_h = 72
+        counter_top = 152 + oy
+        counter_card = pygame.Rect(cx - 160, counter_top, 320, counter_h)
         self._draw_card(counter_card, border_color=glow_color, bg_color=(20, 24, 38))
-        self._draw_text(val_str, self.font_hero, glow_color, (cx, counter_cy - 2), center=True)
-        self._draw_text("ACCUMULATED MULTIPLIER", self.font_small, (150, 160, 185), (cx, counter_cy - 36), center=True)
+        self._draw_text("ACCUMULATED MULTIPLIER", self.font_small, (150, 160, 185), (cx, counter_top + 16), center=True)
+        val_str = f"x{current_val}" if not is_collapsed else "0"
+        self._draw_text(val_str, self.font_hero, glow_color, (cx, counter_top + 46), center=True)
 
         # 4. Collapse Shatter Effect Trigger & Rendering
         if is_collapsed:
@@ -1397,7 +1413,7 @@ class UIRenderer:
             (win_rect.centerx, hdr_rect.centery),
             center=True,
         )
-        self._draw_text("[Auto-Saved]", self.font_small, (110, 125, 145), (win_rect.right - 90, hdr_rect.centery))
+        self._draw_text("[Auto-Saved]", self.font_small, (110, 125, 145), (win_rect.right - 20, hdr_rect.centery), midright=True)
 
         # Menu / Formatting Ribbon
         ribbon_rect = pygame.Rect(win_rect.left, hdr_rect.bottom, win_w, 28)
@@ -1407,7 +1423,8 @@ class UIRenderer:
             "File    Edit    View    Insert    Format    Tools    Extensions    Help",
             self.font_small,
             (125, 135, 155),
-            (win_rect.left + 24, ribbon_rect.centery - 6),
+            (win_rect.left + 24, ribbon_rect.centery),
+            midleft=True,
         )
 
         # 2. Document Page Surface (Canvas)
@@ -1455,13 +1472,13 @@ class UIRenderer:
         pygame.draw.rect(
             self.screen,
             (255, 238, 185),
-            (margin_x - 4, base_y2 - 3, int(margin_w * 0.78), 38),
+            (margin_x - 4, base_y2 - 3, int(margin_w * 0.70), 38),
             border_radius=3,
         )
         p2_lines = [
-            (0, 0.94),
-            (14, 0.92),
-            (28, 0.65),
+            (0, 0.68),
+            (14, 0.65),
+            (28, 0.50),
         ]
         for dy, frac in p2_lines:
             pygame.draw.rect(
@@ -1471,11 +1488,11 @@ class UIRenderer:
                 border_radius=2,
             )
 
-        # Revision tag bubble in right margin
-        rev_tag_rect = pygame.Rect(margin_x + int(margin_w * 0.78) + 12, base_y2 + 2, 170, 26)
+        # Revision tag bubble in right margin (safely anchored inside canvas right border)
+        rev_tag_rect = pygame.Rect(canvas_rect.right - 185, base_y2 + 2, 170, 26)
         pygame.draw.rect(self.screen, (255, 245, 210), rev_tag_rect, border_radius=4)
         pygame.draw.rect(self.screen, (210, 160, 50), rev_tag_rect, width=1, border_radius=4)
-        self._draw_text("[Unsaved Edits: Rev 4.2]", self.font_small, (150, 100, 20), (rev_tag_rect.centerx, rev_tag_rect.centery), center=True)
+        self._draw_text("[Unsaved Edits: Rev 4.2]", self.font_small, (150, 100, 20), rev_tag_rect.center, center=True)
 
         # Paragraph 3
         base_y3 = base_y2 + 50
@@ -1502,13 +1519,15 @@ class UIRenderer:
             "Words: 3,420    |    Characters: 21,850    |    Page 6 of 6",
             self.font_small,
             (140, 150, 170),
-            (status_rect.left + 24, status_rect.centery - 6),
+            (status_rect.left + 24, status_rect.centery),
+            midleft=True,
         )
         self._draw_text(
-            "Status: Draft Quality 'Adequate' (Grade B+)    |    [✓] Citations Checked",
+            "Status: Draft Quality 'Adequate' (Grade B+)    |    [OK] Citations Checked",
             self.font_small,
             COLOR_ACCENT_CYAN,
-            (status_rect.right - 440, status_rect.centery - 6),
+            (status_rect.right - 24, status_rect.centery),
+            midright=True,
         )
 
         # 4. Decision Split: Option 1 vs Option 2
@@ -1543,8 +1562,8 @@ class UIRenderer:
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             self._draw_text(tag_label, self.font_small, tag_col if is_sel else (180, 190, 210), (k_badge.right + 14, r.top + 10))
-            text_rect = pygame.Rect(k_badge.right + 14, r.top + 32, r.width - 65, r.height - 38)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=2)
+            text_rect = pygame.Rect(k_badge.right + 14, r.top + 32, r.width - 85, r.height - 38)
+            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=2, center_v=True)
 
         return True
 
@@ -1577,11 +1596,12 @@ class UIRenderer:
             self.font_title,
             COLOR_ACCENT_CYAN,
             (header_rect.left + 24, header_rect.centery),
+            midleft=True,
         )
 
         # Telemetry badges in header
-        self._draw_text("SEASON PLAYOFFS // MATCH 1 OF 1", self.font_small, (140, 150, 175), (header_rect.right - 460, header_rect.centery))
-        self._draw_text("[DECISION TIME CRITICAL]", self.font_small, COLOR_TIMER_AMBER, (header_rect.right - 180, header_rect.centery))
+        self._draw_text("SEASON PLAYOFFS // MATCH 1 OF 1", self.font_small, (140, 150, 175), (header_rect.right - 260, header_rect.centery), midright=True)
+        self._draw_text("[DECISION TIME CRITICAL]", self.font_small, COLOR_TIMER_AMBER, (header_rect.right - 24, header_rect.centery), midright=True)
 
         # 2. Three Strategy Cards Side-by-Side
         cw = 370
@@ -1605,8 +1625,8 @@ class UIRenderer:
         pygame.draw.rect(self.screen, (0, 180, 120), k1_badge, border_radius=6)
         self._draw_text("1", self.font_title, COLOR_TEXT_PRIMARY, k1_badge.center, center=True)
 
-        self._draw_text("Strategy Alpha", self.font_title, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1_badge.right + 14, c1_rect.top + 16))
-        self._draw_text("CONSERVATIVE PROTOCOL", self.font_small, COLOR_TIMER_GREEN, (k1_badge.right + 14, c1_rect.top + 42))
+        self._draw_text("Strategy Alpha", self.font_body, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1_badge.right + 14, c1_rect.top + 12))
+        self._draw_text("CONSERVATIVE PROTOCOL", self.font_small, COLOR_TIMER_GREEN, (k1_badge.right + 14, c1_rect.top + 38))
 
         # Projected score box
         box1 = pygame.Rect(c1_rect.left + 16, c1_rect.top + 68, cw - 32, 64)
@@ -1638,7 +1658,7 @@ class UIRenderer:
         audit_tag = pygame.Rect(c1_rect.left + 16, c1_rect.top + 325, cw - 32, 38)
         pygame.draw.rect(self.screen, (18, 38, 30), audit_tag, border_radius=6)
         pygame.draw.rect(self.screen, (0, 180, 100), audit_tag, width=1, border_radius=6)
-        self._draw_text("[✓] 6/6 ROUNDS AUDITED & VERIFIED", self.font_small, COLOR_TIMER_GREEN, audit_tag.center, center=True)
+        self._draw_text("[OK] 6/6 ROUNDS AUDITED & VERIFIED", self.font_small, COLOR_TIMER_GREEN, audit_tag.center, center=True)
 
         # Risk rating & description
         self._draw_text("Risk Profile: 1 / 10 (Predictable)", self.font_small, (150, 160, 180), (c1_rect.left + 16, c1_rect.top + 380))
@@ -1658,8 +1678,8 @@ class UIRenderer:
         pygame.draw.rect(self.screen, (220, 140, 0), k2_badge, border_radius=6)
         self._draw_text("2", self.font_title, COLOR_TEXT_PRIMARY, k2_badge.center, center=True)
 
-        self._draw_text("Strategy Beta", self.font_title, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2_badge.right + 14, c2_rect.top + 16))
-        self._draw_text("AGGRESSIVE PROTOCOL", self.font_small, COLOR_TIMER_AMBER, (k2_badge.right + 14, c2_rect.top + 42))
+        self._draw_text("Strategy Beta", self.font_body, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2_badge.right + 14, c2_rect.top + 12))
+        self._draw_text("AGGRESSIVE PROTOCOL", self.font_small, COLOR_TIMER_AMBER, (k2_badge.right + 14, c2_rect.top + 38))
 
         # Projected score box
         box2 = pygame.Rect(c2_rect.left + 16, c2_rect.top + 68, cw - 32, 64)
@@ -1719,8 +1739,8 @@ class UIRenderer:
         pygame.draw.rect(self.screen, (220, 50, 50), k3_badge, border_radius=6)
         self._draw_text("3", self.font_title, COLOR_TEXT_PRIMARY, k3_badge.center, center=True)
 
-        self._draw_text("Strategy Gamma", self.font_title, COLOR_TIMER_RED if is_sel3 else COLOR_TEXT_PRIMARY, (k3_badge.right + 14, c3_rect.top + 16))
-        self._draw_text("EXPERIMENTAL HIGH-YIELD", self.font_small, (255, 80, 80), (k3_badge.right + 14, c3_rect.top + 42))
+        self._draw_text("Strategy Gamma", self.font_body, COLOR_TIMER_RED if is_sel3 else COLOR_TEXT_PRIMARY, (k3_badge.right + 14, c3_rect.top + 12))
+        self._draw_text("EXPERIMENTAL HIGH-YIELD", self.font_small, (255, 80, 80), (k3_badge.right + 14, c3_rect.top + 38))
 
         # Projected score box
         box3 = pygame.Rect(c3_rect.left + 16, c3_rect.top + 68, cw - 32, 64)
@@ -1809,14 +1829,15 @@ class UIRenderer:
 
         # Live feed indicator
         pygame.draw.circle(self.screen, COLOR_TIMER_RED, (nav_rect.left + 22, nav_rect.centery), 5)
-        self._draw_text("LIVE CAMPAIGN", self.font_small, COLOR_TIMER_RED, (nav_rect.left + 36, nav_rect.centery - 8))
+        self._draw_text("LIVE CAMPAIGN", self.font_small, COLOR_TIMER_RED, (nav_rect.left + 36, nav_rect.centery), midleft=True)
         self._draw_text(
             "CREATOR STUDIO // VIRAL FEED REACH ANALYTICS",
             self.font_small,
             COLOR_TEXT_PRIMARY,
-            (nav_rect.left + 170, nav_rect.centery - 8),
+            (nav_rect.left + 160, nav_rect.centery),
+            midleft=True,
         )
-        self._draw_text("Target Algorithm: 15–25 Demographic", self.font_small, (130, 140, 165), (nav_rect.right - 270, nav_rect.centery - 8))
+        self._draw_text("Target Algorithm: 15–25 Demographic", self.font_small, (130, 140, 165), (nav_rect.right - 24, nav_rect.centery), midright=True)
 
         # 2. Main Creator Studio Analytics Panel
         panel_w = 920
@@ -1862,7 +1883,8 @@ class UIRenderer:
             f"{risk_pct}% RISK LEVEL",
             self.font_small,
             risk_color,
-            (gauge_x + gauge_w - 90, gauge_y - 20),
+            (gauge_x + gauge_w, gauge_y - 20),
+            midright=True,
         )
 
         # Gauge track
@@ -1905,8 +1927,8 @@ class UIRenderer:
         self._draw_text("1", self.font_title, COLOR_TEXT_PRIMARY, k1.center, center=True)
 
         self._draw_text("SECURE REACH (Stop Posting)", self.font_body, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1.right + 16, r1.top + 12))
-        sub1_rect = pygame.Rect(k1.right + 16, r1.top + 36, r1.width - 70, r1.height - 42)
-        self._draw_wrapped_text(f"Lock in +{reach_value:,} impressions & conclude safely.", self.font_small, COLOR_TEXT_SECONDARY, sub1_rect, spacing=2)
+        sub1_rect = pygame.Rect(k1.right + 16, r1.top + 36, r1.width - 80, r1.height - 42)
+        self._draw_wrapped_text(f"Lock in +{reach_value:,} impressions & conclude safely.", self.font_small, COLOR_TEXT_SECONDARY, sub1_rect, spacing=2, center_v=True)
 
         # Option 2: POST ANOTHER (Escalate Reach)
         r2 = pygame.Rect(self.width // 2 + 15 + ox, card_y, card_w, card_h)
@@ -1920,8 +1942,8 @@ class UIRenderer:
         self._draw_text("2", self.font_title, COLOR_TEXT_PRIMARY, k2.center, center=True)
 
         self._draw_text("POST ANOTHER (Escalate Reach)", self.font_body, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2.right + 16, r2.top + 12))
-        sub2_rect = pygame.Rect(k2.right + 16, r2.top + 36, r2.width - 70, r2.height - 42)
-        self._draw_wrapped_text(f"Push algorithm (+{bart_runner.config.increment_per_pump:,} reach, elevated flag risk).", self.font_small, COLOR_TEXT_SECONDARY, sub2_rect, spacing=2)
+        sub2_rect = pygame.Rect(k2.right + 16, r2.top + 36, r2.width - 80, r2.height - 42)
+        self._draw_wrapped_text(f"Push algorithm (+{bart_runner.config.increment_per_pump:,} reach, elevated flag risk).", self.font_small, COLOR_TEXT_SECONDARY, sub2_rect, spacing=2, center_v=True)
 
         # 4. Suspension Burst Splash Card
         if is_burst:
@@ -2028,7 +2050,8 @@ class UIRenderer:
             "root@campus-it-gateway: /var/log/audit.log",
             self.font_mono_small,
             (150, 160, 180),
-            (left_rect.left + 68, term_hdr.centery - 8),
+            (left_rect.left + 68, term_hdr.centery),
+            midleft=True,
         )
 
         # Timestamp line with diegetic jitter
@@ -2113,9 +2136,10 @@ class UIRenderer:
             "DECISION TERMINAL // AUTHORIZATION PROTOCOL",
             self.font_small,
             COLOR_ACCENT_CYAN,
-            (right_rect.left + 20, r_hdr.centery - 8),
+            (right_rect.left + 20, r_hdr.centery),
+            midleft=True,
         )
-        self._draw_text("RECORDED EVENT", self.font_small, (130, 140, 160), (right_rect.right - 140, r_hdr.centery - 8))
+        self._draw_text("RECORDED EVENT", self.font_small, (130, 140, 160), (right_rect.right - 20, r_hdr.centery), midright=True)
 
         # Three Options on Cards
         cards_start_y = right_rect.top + 50
@@ -2166,13 +2190,13 @@ class UIRenderer:
             pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=6)
             self._draw_text(str(key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
-            # Title & Subtitle
-            self._draw_text(title, self.font_title, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 16, c_rect.top + 14))
+            # Title & Subtitle (font_body prevents overlap with subtitle at top + 42)
+            self._draw_text(title, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 16, c_rect.top + 14))
             self._draw_text(subtitle, self.font_small, (150, 160, 185), (k_badge.right + 16, c_rect.top + 42))
 
             # Trade-off text
             trade_rect = pygame.Rect(c_rect.left + 16, c_rect.top + 70, c_rect.width - 32, 38)
-            self._draw_wrapped_text(trade_off, self.font_small, COLOR_TEXT_SECONDARY, trade_rect, spacing=2)
+            self._draw_wrapped_text(trade_off, self.font_small, COLOR_TEXT_SECONDARY, trade_rect, spacing=2, center_v=True)
 
             # Bottom pill tag
             tag_rect = pygame.Rect(c_rect.left + 16, c_rect.bottom - 34, c_rect.width - 32, 24)
@@ -2224,8 +2248,8 @@ class UIRenderer:
         ]
         pygame.draw.polygon(self.screen, warn_col, tri_pts)
         self._draw_text("!", self.font_small, (20, 20, 20), (banner_rect.left + 24, banner_rect.centery + 1), center=True)
-        self._draw_text("INTEGRITY CHECK: 38% UNATTRIBUTED OVERLAP IDENTIFIED", self.font_title, warn_col, (banner_rect.left + 46, banner_rect.centery - 14), center=False)
-        self._draw_text("[PLAGIARISM FLAGGED: SENIOR REPO MATCH]", self.font_small, COLOR_TIMER_RED, (banner_rect.right - 340, banner_rect.centery - 8))
+        self._draw_text("INTEGRITY CHECK: 38% UNATTRIBUTED OVERLAP IDENTIFIED", self.font_body, warn_col, (banner_rect.left + 46, banner_rect.centery), midleft=True)
+        self._draw_text("[PLAGIARISM FLAGGED: SENIOR REPO MATCH]", self.font_small, COLOR_TIMER_RED, (banner_rect.right - 20, banner_rect.centery), midright=True)
 
         # 2. Dual-Pane Code Diff Container
         diff_top = 144 + oy
@@ -2245,13 +2269,13 @@ class UIRenderer:
         pygame.draw.rect(self.screen, (14, 17, 26), left_diff, border_radius=6)
         pygame.draw.rect(self.screen, (40, 48, 68), left_diff, width=1, border_radius=6)
         pygame.draw.rect(self.screen, (22, 27, 40), left_hdr, border_top_left_radius=6, border_top_right_radius=6)
-        self._draw_text("CURRENT PROJECT SUBMISSION: src/core/engine.py (Your Group)", self.font_small, (200, 215, 240), (left_hdr.left + 14, left_hdr.centery - 8))
+        self._draw_text("CURRENT PROJECT SUBMISSION: src/core/engine.py (Your Group)", self.font_small, (200, 215, 240), (left_hdr.left + 14, left_hdr.centery), midleft=True)
 
         # Right Diff Pane (Uncredited Archived Repository)
         pygame.draw.rect(self.screen, (14, 17, 26), right_diff, border_radius=6)
         pygame.draw.rect(self.screen, (40, 48, 68), right_diff, width=1, border_radius=6)
         pygame.draw.rect(self.screen, (22, 27, 40), right_hdr, border_top_left_radius=6, border_top_right_radius=6)
-        self._draw_text("UNCREDITED ARCHIVED REPOSITORY: repo_2022_grad/core.py (Senior Alumni)", self.font_small, COLOR_TIMER_AMBER, (right_hdr.left + 14, right_hdr.centery - 8))
+        self._draw_text("UNCREDITED ARCHIVED REPOSITORY: repo_2022_grad/core.py (Senior Alumni)", self.font_small, COLOR_TIMER_AMBER, (right_hdr.left + 14, right_hdr.centery), midleft=True)
 
         # Code lines to render
         left_code = [
@@ -2365,7 +2389,7 @@ class UIRenderer:
 
             # Description wrapped
             text_rect = pygame.Rect(c_rect.left + 14, c_rect.top + 58, c_rect.width - 28, 55)
-            self._draw_wrapped_text(desc, self.font_small, COLOR_TEXT_SECONDARY, text_rect, spacing=4)
+            self._draw_wrapped_text(desc, self.font_small, COLOR_TEXT_SECONDARY, text_rect, spacing=4, center_v=True)
 
             # Tag pill
             tag_rect = pygame.Rect(c_rect.left + 14, c_rect.bottom - 30, c_rect.width - 28, 22)
@@ -2408,40 +2432,40 @@ class UIRenderer:
 
         # 1. Top Navigation Telemetry Bar
         hdr_w = self.width - 240
-        hdr_rect = pygame.Rect(50 + ox, 90 + oy, hdr_w, 48)
+        hdr_rect = pygame.Rect(50 + ox, 90 + oy, hdr_w, 56)
         self._draw_card(hdr_rect, border_color=(45, 55, 78), bg_color=(18, 22, 34))
 
         if selected_index is None:
             self._draw_text(
                 "TRAJECTORY NAVIGATION SYSTEM // DIVERGENT CROSSROADS",
-                self.font_title,
+                self.font_body,
                 COLOR_ACCENT_CYAN,
-                (hdr_rect.left + 20, hdr_rect.centery - 14),
+                (hdr_rect.left + 20, hdr_rect.top + 9),
             )
             self._draw_text(
                 "[DECISION UNRESOLVED: BOTH BRANCHES HARBOR CRITICAL UNCERTAINTY]",
                 self.font_small,
                 COLOR_TIMER_AMBER,
-                (hdr_rect.left + 20, hdr_rect.centery + 10),
+                (hdr_rect.left + 20, hdr_rect.top + 33),
             )
         else:
             pulse_syn = (math.sin(time_remaining_s * 4.0) + 1.0) / 2.0
             syn_col = (int(0 + 120 * pulse_syn), int(210 + 45 * pulse_syn), 255)
             self._draw_text(
                 "Synthesizing outcome projections...",
-                self.font_title,
+                self.font_body,
                 syn_col,
-                (hdr_rect.left + 20, hdr_rect.centery - 14),
+                (hdr_rect.left + 20, hdr_rect.top + 9),
             )
             self._draw_text(
                 "[TRAJECTORY LOCKED • SUSPENDED ACROSS EVALUATION WINDOW]",
                 self.font_small,
                 COLOR_ACCENT_CYAN,
-                (hdr_rect.left + 20, hdr_rect.centery + 10),
+                (hdr_rect.left + 20, hdr_rect.top + 33),
             )
 
-        # 2. Unsettled Compass Rose at top right
-        compass_center = (self.width - 95 + ox, 114 + oy)
+        # 2. Unsettled Compass Rose at top right (sized & shifted to avoid timer bar)
+        compass_center = (self.width - 85 + ox, 122 + oy)
         if selected_index is not None:
             # Accelerated compass rotation
             compass_angle = (time_remaining_s * 360.0) % 360.0
@@ -2449,12 +2473,12 @@ class UIRenderer:
             # Slow continuous drift without settling on North
             compass_angle = (time_remaining_s * 45.0) % 360.0
 
-        self._draw_compass(compass_center, 34, compass_angle)
+        self._draw_compass(compass_center, 28, compass_angle)
         self._draw_text(
             "[ UNSETTLED ]",
             self.font_mono_small,
             COLOR_TIMER_AMBER if selected_index is None else COLOR_TIMER_RED,
-            (compass_center[0], compass_center[1] + 48),
+            (compass_center[0], compass_center[1] + 36),
             center=True,
         )
 
@@ -2524,8 +2548,8 @@ class UIRenderer:
             center=True,
         )
 
-        # Terminal Box A: Opaque Gray Box
-        box_a = pygame.Rect(cx - 510, fork_node_y - 215, 340, 68)
+        # Terminal Box A: Opaque Gray Box (expanded to 380px to contain subtitle cleanly)
+        box_a = pygame.Rect(cx - 550, fork_node_y - 215, 380, 68)
         box_a_border = (50, 58, 75) if is_a_dimmed else ((0, 229, 255) if is_a_active else (80, 95, 125))
         box_a_bg = (20, 24, 32) if is_a_dimmed else ((20, 36, 48) if is_a_active else (26, 30, 42))
         self._draw_card(box_a, border_color=box_a_border, bg_color=box_a_bg)
@@ -2538,7 +2562,7 @@ class UIRenderer:
             center=True,
         )
         self._draw_text(
-            "Familiar Track • Predictable Progression • Ceiling Unknown",
+            "Familiar Track • Predictable • Fixed Ceiling",
             self.font_mono_small,
             (90, 100, 115) if is_a_dimmed else (150, 165, 190),
             (box_a.centerx, box_a.top + 42),
@@ -2597,8 +2621,8 @@ class UIRenderer:
             pygame.draw.ellipse(fog_surf, (8, 10, 16, fog_alpha), (fog_w // 2 - fog_r, fog_h // 2 - fog_r // 2, fog_r * 2, fog_r))
         self.screen.blit(fog_surf, (cx + 150, fork_node_y - 235))
 
-        # Terminal Box B inside fog
-        box_b = pygame.Rect(cx + 170, fork_node_y - 215, 340, 68)
+        # Terminal Box B inside fog (expanded to 380px to contain subtitle cleanly)
+        box_b = pygame.Rect(cx + 170, fork_node_y - 215, 380, 68)
         box_b_border = (50, 45, 40) if is_b_dimmed else (COLOR_TIMER_AMBER if is_b_active else (180, 130, 25))
         box_b_bg = (18, 16, 14) if is_b_dimmed else ((36, 26, 16) if is_b_active else (28, 22, 16))
         self._draw_card(box_b, border_color=box_b_border, bg_color=box_b_bg)
@@ -2611,7 +2635,7 @@ class UIRenderer:
             center=True,
         )
         self._draw_text(
-            "Unpredictable Trajectory • Emergent Outcomes • High Volatility",
+            "Uncharted • High Volatility • Zero Guarantees",
             self.font_mono_small,
             (90, 85, 80) if is_b_dimmed else (200, 170, 130),
             (box_b.centerx, box_b.top + 42),
@@ -2639,13 +2663,14 @@ class UIRenderer:
             COLOR_ACCENT_CYAN if selected_index == 0 else COLOR_TEXT_PRIMARY,
             (k1_badge.right + 14, r1.top + 14),
         )
-        sub1_rect = pygame.Rect(k1_badge.right + 14, r1.top + 36, r1.width - 80, 32)
+        sub1_rect = pygame.Rect(k1_badge.right + 14, r1.top + 36, r1.width - 85, 40)
         self._draw_wrapped_text(
             "Predictable progression. Long-term growth potential: [DATA UNAVAILABLE]",
             self.font_small,
             COLOR_TEXT_SECONDARY,
             sub1_rect,
             spacing=2,
+            center_v=True,
         )
         tag1 = pygame.Rect(k1_badge.right + 14, r1.bottom - 28, 270, 20)
         pygame.draw.rect(self.screen, (16, 24, 34), tag1, border_radius=4)
@@ -2668,13 +2693,14 @@ class UIRenderer:
             COLOR_TIMER_AMBER if selected_index == 1 else COLOR_TEXT_PRIMARY,
             (k2_badge.right + 14, r2.top + 14),
         )
-        sub2_rect = pygame.Rect(k2_badge.right + 14, r2.top + 36, r2.width - 80, 32)
+        sub2_rect = pygame.Rect(k2_badge.right + 14, r2.top + 36, r2.width - 85, 40)
         self._draw_wrapped_text(
             "Unpredictable trajectory. Support structure: [UNDER REVIEW]",
             self.font_small,
             COLOR_TEXT_SECONDARY,
             sub2_rect,
             spacing=2,
+            center_v=True,
         )
         tag2 = pygame.Rect(k2_badge.right + 14, r2.bottom - 28, 270, 20)
         pygame.draw.rect(self.screen, (30, 22, 14), tag2, border_radius=4)
@@ -2716,20 +2742,20 @@ class UIRenderer:
             "23:42",
             self.font_title,
             (210, 220, 240),
-            (cx, 84 + oy),
+            (cx, 106 + oy),
             center=True,
         )
         self._draw_text(
             "Friday, September 19 • Midterm Assessment Period",
             self.font_small,
             (130, 140, 165),
-            (cx, 114 + oy),
+            (cx, 134 + oy),
             center=True,
         )
 
         # Status icons (Right: Battery + Signal)
         stat_x = self.width - 140 + ox
-        stat_y = 90 + oy
+        stat_y = 106 + oy
         # Battery outline
         pygame.draw.rect(self.screen, (140, 150, 175), (stat_x + 60, stat_y, 22, 12), width=1, border_radius=2)
         pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (stat_x + 62, stat_y + 2, 14, 8))
@@ -2741,8 +2767,8 @@ class UIRenderer:
 
         # 2. Centered Sparse Notification Card
         card_w = 840
-        card_h = 180
-        notif_rect = pygame.Rect(cx - card_w // 2, 138 + oy, card_w, card_h)
+        card_h = 175
+        notif_rect = pygame.Rect(cx - card_w // 2, 156 + oy, card_w, card_h)
         self._draw_card(notif_rect, border_color=(60, 72, 100), bg_color=(20, 24, 38))
 
         # Card Header: Authority Seal + Sender
@@ -2751,21 +2777,26 @@ class UIRenderer:
         pygame.draw.circle(self.screen, (34, 42, 64), (seal_cx, seal_cy), 18)
         pygame.draw.circle(self.screen, (218, 165, 32), (seal_cx, seal_cy), 18, width=2)
         pygame.draw.circle(self.screen, (218, 165, 32), (seal_cx, seal_cy), 14, width=1)
-        self._draw_text("★", self.font_small, (218, 165, 32), (seal_cx, seal_cy), center=True)
+        star_pts = []
+        for p_i in range(10):
+            r_pt = 7 if p_i % 2 == 0 else 3.2
+            ang = -math.pi / 2 + p_i * (math.pi / 5)
+            star_pts.append((seal_cx + int(r_pt * math.cos(ang)), seal_cy + int(r_pt * math.sin(ang))))
+        pygame.draw.polygon(self.screen, (218, 165, 32), star_pts)
 
         self._draw_text(
             "ACADEMIC EVALUATOR / SUPERVISOR",
-            self.font_title,
+            self.font_body,
             (240, 245, 255),
-            (seal_cx + 28, notif_rect.top + 16),
+            (seal_cx + 28, notif_rect.top + 14),
         )
         self._draw_text(
             "FACULTY PORTAL • CONFIDENTIAL PERFORMANCE NOTICE",
             self.font_mono_small,
             (130, 145, 175),
-            (seal_cx + 28, notif_rect.top + 42),
+            (seal_cx + 28, notif_rect.top + 38),
         )
-        self._draw_text("Now • Priority Tier 1", self.font_small, COLOR_TIMER_AMBER, (notif_rect.right - 180, notif_rect.top + 22))
+        self._draw_text("Now • Priority Tier 1", self.font_small, COLOR_TIMER_AMBER, (notif_rect.right - 20, notif_rect.top + 26), midright=True)
 
         # Divider
         pygame.draw.line(self.screen, (38, 46, 68), (notif_rect.left + 20, notif_rect.top + 68), (notif_rect.right - 20, notif_rect.top + 68), 1)
@@ -2803,7 +2834,7 @@ class UIRenderer:
         )
 
         # 3. Draft Responses: 3 Stacked Cards
-        draft_header_y = notif_rect.bottom + 14
+        draft_header_y = notif_rect.bottom + 12
         self._draw_text(
             "SELECT DRAFT RESPONSE TO SUPERVISOR:",
             self.font_small,
@@ -2838,8 +2869,8 @@ class UIRenderer:
             ),
         ]
 
-        cards_start_y = draft_header_y + 24
-        d_card_h = 88
+        cards_start_y = draft_header_y + 22
+        d_card_h = 92
         d_gap = 12
 
         for i, (key, label, quote, tag, accent_col, bg_col) in enumerate(drafts):
@@ -2857,17 +2888,17 @@ class UIRenderer:
             self._draw_text(str(key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             self._draw_text(label, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 14, d_rect.top + 10))
-            quote_rect = pygame.Rect(k_badge.right + 14, d_rect.top + 34, d_rect.width - 70, 24)
-            self._draw_wrapped_text(quote, self.font_small, (220, 228, 240) if is_sel else (170, 180, 200), quote_rect)
+            quote_rect = pygame.Rect(k_badge.right + 14, d_rect.top + 34, d_rect.width - 80, 26)
+            self._draw_wrapped_text(quote, self.font_small, (220, 228, 240) if is_sel else (170, 180, 200), quote_rect, center_v=True)
 
             # Bottom tag
-            t_rect = pygame.Rect(k_badge.right + 14, d_rect.bottom - 26, 420, 18)
+            t_rect = pygame.Rect(k_badge.right + 14, d_rect.bottom - 24, 420, 18)
             pygame.draw.rect(self.screen, (16, 20, 30), t_rect, border_radius=3)
             pygame.draw.rect(self.screen, accent_col, t_rect, width=1, border_radius=3)
             self._draw_text(tag, self.font_mono_small, accent_col, t_rect.center, center=True)
 
             if is_sel:
-                self._draw_text("[DISPATCHING DRAFT...]", self.font_mono_small, accent_col, (d_rect.right - 190, d_rect.top + 12))
+                self._draw_text("[DISPATCHING DRAFT...]", self.font_mono_small, accent_col, (d_rect.right - 20, d_rect.top + 12), midright=True)
 
         # Bottom Prompt
         self._draw_text(
@@ -3004,24 +3035,23 @@ class UIRenderer:
         # 3. Podium Defense Terminal (Speaker's Perspective) & Options
         # -----------------------------------------------------------------
         podium_y = 302 + jy
-        podium_banner = pygame.Rect(70 + jx, podium_y, self.width - 140, 26)
+        podium_banner = pygame.Rect(70 + jx, podium_y, self.width - 140, 32)
         pygame.draw.rect(self.screen, (22, 26, 36), podium_banner, border_radius=4)
         pygame.draw.rect(self.screen, (45, 54, 75), podium_banner, width=1, border_radius=4)
 
         # Microphone live cue
         pygame.draw.circle(self.screen, COLOR_TIMER_GREEN, (podium_banner.left + 14, podium_banner.centery), 4)
-        self._draw_text("PODIUM MIC: LIVE", self.font_small, COLOR_TIMER_GREEN, (podium_banner.left + 24, podium_banner.centery - 6))
-        self._draw_text("DEFENSE TERMINAL CONSOLE — SELECT STRATEGY", self.font_small, COLOR_ACCENT_CYAN, (podium_banner.centerx, podium_banner.centery - 6), center=True)
+        self._draw_text("PODIUM MIC: LIVE", self.font_small, COLOR_TIMER_GREEN, (podium_banner.left + 24, podium_banner.centery), midleft=True)
+        self._draw_text("DEFENSE TERMINAL CONSOLE — SELECT STRATEGY", self.font_small, COLOR_ACCENT_CYAN, (podium_banner.centerx, podium_banner.centery), center=True)
         if is_drone_active:
             dt_str = "[ DIEGETIC TENSION ACTIVE ]"
-            dtw = self.font_small.size(dt_str)[0]
-            self._draw_text(dt_str, self.font_small, COLOR_TIMER_AMBER, (podium_banner.right - 14 - dtw, podium_banner.centery - 6))
+            self._draw_text(dt_str, self.font_small, COLOR_TIMER_AMBER, (podium_banner.right - 14, podium_banner.centery), midright=True)
 
         # 3 Options displayed on podium console screen
         opts = scenario.options
         card_h = 68
         gap = 10
-        start_y = podium_y + 32
+        start_y = podium_y + 38
         stance_tags = [
             "[ TECHNICAL JUSTIFICATION ]",
             "[ LIMITATION CONCESSION ]",
@@ -3055,7 +3085,7 @@ class UIRenderer:
             tag_str = stance_tags[i] if i < len(stance_tags) else ""
             self._draw_text(tag_str, self.font_small, COLOR_ACCENT_CYAN if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
             opt_rect = pygame.Rect(key_rect.right + 14, rect.top + 31, rect.width - 210, 30)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect)
+            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect, center_v=True)
 
             # Selected indicator tag
             if is_sel:
@@ -3067,7 +3097,7 @@ class UIRenderer:
         # 4. Active Deception Composure Bar (Bottom Biofeedback Bar)
         # -----------------------------------------------------------------
         if scenario.has_deception_metric:
-            comp_bar_y = start_y + len(opts) * (card_h + gap) + 22
+            comp_bar_y = start_y + len(opts) * (card_h + gap) + 16
             comp_val = composure_fraction if composure_fraction is not None else 1.0
             self.draw_composure_bar(
                 comp_val,
@@ -3268,7 +3298,7 @@ class UIRenderer:
             tag_str = posture_tags[i] if i < len(posture_tags) else ""
             self._draw_text(tag_str, self.font_small, COLOR_ACCENT_CYAN if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
             opt_rect = pygame.Rect(key_rect.right + 14, rect.top + 31, rect.width - 210, 30)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect)
+            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect, center_v=True)
 
             # Selected indicator tag
             if is_sel:
@@ -3280,7 +3310,7 @@ class UIRenderer:
         # 5. Active Deception Composure Bar (Bottom Biofeedback Bar)
         # -----------------------------------------------------------------
         if scenario.has_deception_metric:
-            comp_bar_y = start_y + len(opts) * (card_h + gap) + 22
+            comp_bar_y = start_y + len(opts) * (card_h + gap) + 16
             comp_val = composure_fraction if composure_fraction is not None else 1.0
             self.draw_composure_bar(
                 comp_val,
@@ -3363,7 +3393,7 @@ class UIRenderer:
         frac = max(0.0, min(1.0, fraction))
         x, y = pos
         bar_w = width if width is not None else (self.width - 100)
-        panel_rect = pygame.Rect(x, y - 18, bar_w, 62)
+        panel_rect = pygame.Rect(x, y - 18, bar_w, 68)
 
         # Panel card background
         pygame.draw.rect(self.screen, (18, 22, 32), panel_rect, border_radius=6)
@@ -3371,7 +3401,7 @@ class UIRenderer:
         pygame.draw.rect(self.screen, border_col, panel_rect, width=1, border_radius=6)
 
         # Header / Label
-        self._draw_text("Physiological Composure Analysis: Active", self.font_small, COLOR_ACCENT_CYAN, (x + 12, panel_rect.top + 6))
+        self._draw_text("Physiological Composure Analysis: Active", self.font_small, COLOR_ACCENT_CYAN, (x + 14, panel_rect.top + 10), midleft=True)
 
         # Dynamic smooth color transition from green -> amber -> red
         if frac > 0.6:
@@ -3397,11 +3427,10 @@ class UIRenderer:
             status_text = f"STABILITY: {int(frac * 100)}% | AROUSAL: CRITICAL (+2.8σ)"
             status_col = COLOR_TIMER_RED
 
-        status_w = self.font_small.size(status_text)[0]
-        self._draw_text(status_text, self.font_small, status_col, (panel_rect.right - 12 - status_w, panel_rect.top + 6))
+        self._draw_text(status_text, self.font_small, status_col, (panel_rect.right - 14, panel_rect.top + 10), midright=True)
 
         # Track and Bar
-        track_rect = pygame.Rect(x + 12, panel_rect.top + 26, bar_w - 24, 14)
+        track_rect = pygame.Rect(x + 14, panel_rect.top + 26, bar_w - 28, 14)
         pygame.draw.rect(self.screen, (32, 36, 48), track_rect, border_radius=4)
         fill_w = int(track_rect.width * frac)
         if fill_w > 0:
@@ -3409,12 +3438,11 @@ class UIRenderer:
 
         # Telemetry info line
         sub_text = "HARDWARE TELEMETRY: ESP32 / MPU-6050 RESTING TREMOR METRIC (CALIBRATED μ + 1.5σ)"
-        self._draw_text(sub_text, self.font_mono_small, (110, 118, 135), (x + 12, panel_rect.top + 44))
+        self._draw_text(sub_text, self.font_mono_small, (110, 118, 135), (x + 14, panel_rect.top + 50), midleft=True)
 
         if is_drone_active:
             drone_tag = "[ DIEGETIC TENSION DRONE ENGAGED ]"
-            dt_w = self.font_mono_small.size(drone_tag)[0]
-            self._draw_text(drone_tag, self.font_mono_small, COLOR_TIMER_AMBER if frac > 0.3 else COLOR_TIMER_RED, (panel_rect.right - 12 - dt_w, panel_rect.top + 44))
+            self._draw_text(drone_tag, self.font_mono_small, COLOR_TIMER_AMBER if frac > 0.3 else COLOR_TIMER_RED, (panel_rect.right - 14, panel_rect.top + 50), midright=True)
 
 
     def draw_question_popup(self, scenario: Scenario) -> None:
