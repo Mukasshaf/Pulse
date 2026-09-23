@@ -8,10 +8,16 @@ import pygame
 from src.game.constants import (
     COLOR_ACCENT_CYAN,
     COLOR_ACCENT_INDIGO,
+    COLOR_ACCENT_YELLOW,
     COLOR_BG,
     COLOR_CARD_BG,
+    COLOR_HAIRLINE,
+    COLOR_HAIRLINE_SUBTLE,
+    COLOR_PRIMARY_ACTIVE,
+    COLOR_PRIMARY_ROSSO,
     COLOR_REST_GRADIENT_BOTTOM,
     COLOR_REST_GRADIENT_TOP,
+    COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
     COLOR_TIMER_AMBER,
@@ -173,19 +179,21 @@ class UIRenderer:
         rect: pygame.Rect,
         border_color: tuple[int, int, int] | None = None,
         bg_color: tuple[int, int, int] = COLOR_CARD_BG,
+        border_radius: int = 0,
+        border_width: int = 1,
     ) -> None:
-        """Draw a rounded panel card with optional accent border."""
-        pygame.draw.rect(self.screen, bg_color, rect, border_radius=8)
+        """Draw a precision panel card with optional accent border (Ferrari design system)."""
+        pygame.draw.rect(self.screen, bg_color, rect, border_radius=border_radius)
         if border_color is not None:
-            pygame.draw.rect(self.screen, border_color, rect, width=2, border_radius=8)
+            pygame.draw.rect(self.screen, border_color, rect, width=border_width, border_radius=border_radius)
 
     def _draw_compass(self, center: tuple[int, int], radius: int, angle_deg: float) -> None:
         """Render a minimalist compass rose with rotating needle."""
         cx, cy = center
         # Outer dial ring
-        pygame.draw.circle(self.screen, (20, 25, 38), (cx, cy), radius)
-        pygame.draw.circle(self.screen, (60, 75, 105), (cx, cy), radius, width=2)
-        pygame.draw.circle(self.screen, (38, 48, 70), (cx, cy), radius - 6, width=1)
+        pygame.draw.circle(self.screen, (28, 28, 28), (cx, cy), radius)
+        pygame.draw.circle(self.screen, COLOR_HAIRLINE_SUBTLE, (cx, cy), radius, width=1)
+        pygame.draw.circle(self.screen, COLOR_HAIRLINE, (cx, cy), radius - 6, width=1)
 
         # Cardinal tick marks & labels
         cardinals = [("N", 0), ("E", 90), ("S", 180), ("W", 270)]
@@ -195,11 +203,11 @@ class UIRenderer:
             ty1 = cy + int((radius - 5) * math.sin(rad))
             tx2 = cx + int((radius - 1) * math.cos(rad))
             ty2 = cy + int((radius - 1) * math.sin(rad))
-            pygame.draw.line(self.screen, (100, 115, 145), (tx1, ty1), (tx2, ty2), 2)
+            pygame.draw.line(self.screen, COLOR_HAIRLINE_SUBTLE, (tx1, ty1), (tx2, ty2), 2)
 
             lx = cx + int((radius + 11) * math.cos(rad))
             ly = cy + int((radius + 11) * math.sin(rad))
-            col = (255, 100, 100) if label == "N" else (140, 150, 175)
+            col = COLOR_PRIMARY_ROSSO if label == "N" else COLOR_TEXT_SECONDARY
             self._draw_text(label, self.font_mono_small, col, (lx, ly), center=True)
 
         # Intermediate ticks
@@ -209,7 +217,7 @@ class UIRenderer:
             ty1 = cy + int((radius - 4) * math.sin(rad))
             tx2 = cx + int((radius - 1) * math.cos(rad))
             ty2 = cy + int((radius - 1) * math.sin(rad))
-            pygame.draw.line(self.screen, (45, 55, 75), (tx1, ty1), (tx2, ty2), 1)
+            pygame.draw.line(self.screen, COLOR_HAIRLINE, (tx1, ty1), (tx2, ty2), 1)
 
         # Rotating needle (red North tip, cyan South tip)
         n_rad = math.radians(angle_deg - 90)
@@ -225,30 +233,30 @@ class UIRenderer:
         w_pt = (cx + int(side_len * math.cos(w_rad)), cy + int(side_len * math.sin(w_rad)))
         e_pt = (cx + int(side_len * math.cos(e_rad)), cy + int(side_len * math.sin(e_rad)))
 
-        # North needle polygon (red)
-        pygame.draw.polygon(self.screen, (255, 75, 75), [n_pt, w_pt, (cx, cy)])
-        pygame.draw.polygon(self.screen, (200, 45, 45), [n_pt, e_pt, (cx, cy)])
+        # North needle polygon (Rosso Corsa)
+        pygame.draw.polygon(self.screen, COLOR_PRIMARY_ROSSO, [n_pt, w_pt, (cx, cy)])
+        pygame.draw.polygon(self.screen, COLOR_PRIMARY_ACTIVE, [n_pt, e_pt, (cx, cy)])
 
-        # South needle polygon (cyan)
+        # South needle polygon (cyan telemetry)
         pygame.draw.polygon(self.screen, COLOR_ACCENT_CYAN, [s_pt, w_pt, (cx, cy)])
-        pygame.draw.polygon(self.screen, (0, 175, 200), [s_pt, e_pt, (cx, cy)])
+        pygame.draw.polygon(self.screen, COLOR_PRIMARY_ROSSO, [s_pt, e_pt, (cx, cy)])
 
         # Center pivot
-        pygame.draw.circle(self.screen, (220, 225, 235), (cx, cy), 4)
-        pygame.draw.circle(self.screen, (30, 36, 50), (cx, cy), 2)
+        pygame.draw.circle(self.screen, (240, 240, 240), (cx, cy), 4)
+        pygame.draw.circle(self.screen, (32, 32, 32), (cx, cy), 2)
 
     def draw_id_input(self, current_text: str, error_msg: str | None) -> None:
         """Render participant ID entry screen."""
         self.screen.fill(COLOR_BG)
         card_rect = pygame.Rect(self.width // 2 - 250, self.height // 2 - 140, 500, 280)
-        self._draw_card(card_rect, COLOR_ACCENT_INDIGO)
+        self._draw_card(card_rect, COLOR_PRIMARY_ROSSO)
 
         self._draw_text("PULSE ENGINE", self.font_hero, COLOR_TEXT_PRIMARY, (self.width // 2, card_rect.top + 50), center=True)
         self._draw_text("Enter Subject ID (e.g. S01):", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.top + 105), center=True)
 
         box_rect = pygame.Rect(self.width // 2 - 120, card_rect.top + 140, 240, 48)
-        pygame.draw.rect(self.screen, (22, 22, 32), box_rect, border_radius=6)
-        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, box_rect, width=2, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 28, 28), box_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, box_rect, width=1, border_radius=0)
 
         display_str = current_text + ("_" if (pygame.time.get_ticks() // 500) % 2 == 0 else "")
         self._draw_text(display_str, self.font_title, COLOR_TEXT_PRIMARY, box_rect.center, center=True)
@@ -269,9 +277,9 @@ class UIRenderer:
         radius = int(50 + t_cycle * 60)
         center = (self.width // 2, self.height // 2 - 20)
 
-        pygame.draw.circle(self.screen, (25, 35, 55), center, 125)
-        pygame.draw.circle(self.screen, COLOR_ACCENT_INDIGO, center, radius, width=4)
-        pygame.draw.circle(self.screen, (45, 65, 105), center, max(5, radius - 4))
+        pygame.draw.circle(self.screen, (32, 32, 32), center, 125)
+        pygame.draw.circle(self.screen, COLOR_PRIMARY_ROSSO, center, radius, width=3)
+        pygame.draw.circle(self.screen, (48, 48, 48), center, max(5, radius - 4))
 
         guide = "Breathe In..." if phase < 0.5 else "Breathe Out..."
         self._draw_text("BASELINE PHYSIOLOGICAL CALIBRATION", self.font_title, COLOR_TEXT_PRIMARY, (self.width // 2, 80), center=True)
@@ -285,7 +293,7 @@ class UIRenderer:
         rem_s = max(0, int(round(scenario.priming_duration_s - elapsed_s)))
 
         card_rect = pygame.Rect(self.width // 2 - 500, self.height // 2 - 225, 1000, 450)
-        self._draw_card(card_rect, COLOR_ACCENT_INDIGO)
+        self._draw_card(card_rect, COLOR_PRIMARY_ROSSO)
 
         self._draw_text(scenario.domain_id.value.replace("_", " ").upper(), self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 45, card_rect.top + 28))
 
@@ -328,15 +336,16 @@ class UIRenderer:
 
         # Hold TAB / Q question popup hint pill
         hint_rect = pygame.Rect(self.width - 410 + jx, 28 + jy, 230, 28)
-        pygame.draw.rect(self.screen, (22, 28, 42), hint_rect, border_radius=6)
-        pygame.draw.rect(self.screen, (60, 75, 110), hint_rect, width=1, border_radius=6)
-        self._draw_text("[ HOLD TAB: VIEW QUESTION ]", self.font_mono_small, (150, 180, 220), hint_rect.center, center=True)
+        pygame.draw.rect(self.screen, (32, 32, 32), hint_rect, border_radius=14)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE_SUBTLE, hint_rect, width=1, border_radius=14)
+        self._draw_text("[ HOLD TAB: VIEW QUESTION ]", self.font_mono_small, COLOR_ACCENT_CYAN, hint_rect.center, center=True)
 
-        # Timer bar
+        # Timer bar (sharp automotive precision)
         frac = max(0.0, time_remaining_s / float(scenario.decision_duration_s))
         bar_w = int((self.width - 100) * frac)
-        pygame.draw.rect(self.screen, (40, 40, 50), (50, 75, self.width - 100, 10), border_radius=4)
-        pygame.draw.rect(self.screen, effects.timer_bar_color, (50, 75, bar_w, 10), border_radius=4)
+        pygame.draw.rect(self.screen, (36, 36, 36), (50, 75, self.width - 100, 10), border_radius=0)
+        pygame.draw.rect(self.screen, effects.timer_bar_color, (50, 75, bar_w, 10), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, (50, 75, self.width - 100, 10), width=1, border_radius=0)
 
         rendered = self._render_skin(
             scenario,
@@ -383,12 +392,13 @@ class UIRenderer:
             y = start_y + i * (card_h + gap)
             rect = pygame.Rect(60 + jx, y + jy, self.width - 120, card_h)
             is_sel = selected_index == i
-            border = COLOR_ACCENT_CYAN if is_sel else ((60, 60, 80) if selected_index is not None else None)
-            bg = (40, 45, 65) if is_sel else COLOR_CARD_BG
+            border = COLOR_PRIMARY_ROSSO if is_sel else (COLOR_HAIRLINE_SUBTLE if selected_index is not None else None)
+            bg = (56, 40, 40) if is_sel else COLOR_CARD_BG
             self._draw_card(rect, border, bg)
 
             key_badge = pygame.Rect(rect.left + 16, rect.centery - 18, 36, 36)
-            pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, key_badge, border_radius=6)
+            badge_col = COLOR_PRIMARY_ACTIVE if is_sel else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_col, key_badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, key_badge.center, center=True)
 
             text_rect = pygame.Rect(key_badge.right + 20, rect.top + 10, rect.width - 90, rect.height - 20)
@@ -402,7 +412,7 @@ class UIRenderer:
             return
 
         q_rect = pygame.Rect(self.width // 2 - 300, 170, 600, 90)
-        self._draw_card(q_rect, COLOR_ACCENT_INDIGO)
+        self._draw_card(q_rect, COLOR_PRIMARY_ROSSO)
         self._draw_text(prob.question_text, self.font_hero, COLOR_TEXT_PRIMARY, q_rect.center, center=True)
 
         for i, ans in enumerate(prob.options):
@@ -413,11 +423,12 @@ class UIRenderer:
             btn_rect = pygame.Rect(bx, by, 285, 70)
 
             bg = MIST_WRONG_FLASH_COLOR if (effects.is_flashing and selected_index == i) else COLOR_CARD_BG
-            border = COLOR_ACCENT_CYAN if selected_index == i else None
+            border = COLOR_PRIMARY_ROSSO if selected_index == i else None
             self._draw_card(btn_rect, border, bg)
 
             badge = pygame.Rect(btn_rect.left + 15, btn_rect.centery - 16, 32, 32)
-            pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
+            badge_col = COLOR_PRIMARY_ACTIVE if selected_index == i else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_col, badge, border_radius=0)
             self._draw_text(str(i + 1), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
             self._draw_text(str(ans), self.font_hero, COLOR_TEXT_PRIMARY, (badge.right + 45, btn_rect.centery), center=True)
 
@@ -432,9 +443,10 @@ class UIRenderer:
             by = 310 + i * 85
             rect = pygame.Rect(self.width // 2 - 260, by, 520, 70)
             is_sel = selected_index == i
-            self._draw_card(rect, COLOR_ACCENT_CYAN if is_sel else None)
+            self._draw_card(rect, COLOR_PRIMARY_ROSSO if is_sel else None)
             badge = pygame.Rect(rect.left + 15, rect.centery - 16, 32, 32)
-            pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
+            badge_col = COLOR_PRIMARY_ACTIVE if is_sel else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_col, badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
             self._draw_text(opt.text, self.font_title, COLOR_TEXT_PRIMARY, (rect.centerx + 15, rect.centery), center=True)
 
@@ -457,9 +469,10 @@ class UIRenderer:
             by = 310 + i * 85
             rect = pygame.Rect(self.width // 2 - 260 + vx, by + vy, 520, 70)
             is_sel = selected_index == i
-            self._draw_card(rect, COLOR_ACCENT_CYAN if is_sel else None)
+            self._draw_card(rect, COLOR_PRIMARY_ROSSO if is_sel else None)
             badge = pygame.Rect(rect.left + 15, rect.centery - 16, 32, 32)
-            pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
+            badge_col = COLOR_PRIMARY_ACTIVE if is_sel else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_col, badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
             self._draw_text(opt.text, self.font_title, COLOR_TEXT_PRIMARY, (rect.centerx + 15, rect.centery), center=True)
 
@@ -567,16 +580,16 @@ class UIRenderer:
             torso_pts = [(dx - 15, dy), (dx + 15, dy), (dx + 9, dy - 11), (dx - 9, dy - 11)]
             pygame.draw.polygon(self.screen, (28, 32, 44), torso_pts)
             # Miniature desk & exam paper
-            pygame.draw.rect(self.screen, (42, 46, 60), (dx - 40, dy, 80, 16), border_radius=2)
+            pygame.draw.rect(self.screen, (36, 36, 36), (dx - 40, dy, 80, 16), border_radius=0)
             pygame.draw.rect(self.screen, (215, 215, 210), (dx - 12, dy + 2, 24, 11))
             # Peer progress bar (dynamically stays ~15% ahead)
             peer_val = min(1.0, max(0.12, user_frac + lead_offsets[k]))
             bar_w = 84
             bar_h = 7
             bar_rect = pygame.Rect(dx - 42, dy - 34, bar_w, bar_h)
-            pygame.draw.rect(self.screen, (35, 38, 50), bar_rect, border_radius=3)
+            pygame.draw.rect(self.screen, (28, 28, 28), bar_rect, border_radius=0)
             fill_col = COLOR_TIMER_AMBER if peer_val < 0.85 else COLOR_TIMER_RED
-            pygame.draw.rect(self.screen, fill_col, (bar_rect.left, bar_rect.top, int(bar_w * peer_val), bar_h), border_radius=3)
+            pygame.draw.rect(self.screen, fill_col, (bar_rect.left, bar_rect.top, int(bar_w * peer_val), bar_h), border_radius=0)
             self._draw_text(f"Desk {k + 1}: {int(peer_val * 100)}%", self.font_small, (150, 155, 175), (dx, dy - 48), center=True)
 
         # Foreground Desk: Wood surface
@@ -592,10 +605,10 @@ class UIRenderer:
         paper_y = desk_y + 14 + jy
         paper_rect = pygame.Rect(paper_x, paper_y, paper_w, paper_h)
         # Paper drop shadow
-        pygame.draw.rect(self.screen, (18, 15, 14), (paper_x + 6, paper_y + 6, paper_w, paper_h), border_radius=3)
+        pygame.draw.rect(self.screen, (18, 18, 18), (paper_x + 6, paper_y + 6, paper_w, paper_h), border_radius=0)
         # Paper fill and outline
-        pygame.draw.rect(self.screen, (235, 235, 230), paper_rect, border_radius=3)
-        pygame.draw.rect(self.screen, (200, 200, 192), paper_rect, width=2, border_radius=3)
+        pygame.draw.rect(self.screen, (240, 240, 236), paper_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, paper_rect, width=1, border_radius=0)
         # Margin line
         margin_x = paper_x + 55
         pygame.draw.line(self.screen, (225, 180, 180), (margin_x, paper_y + 10), (margin_x, paper_y + paper_h - 10), 1)
@@ -607,8 +620,8 @@ class UIRenderer:
 
         # MIST Arithmetic Question Overlay
         q_rect = pygame.Rect(margin_x + 15, paper_y + 68, paper_w - 110, 85)
-        pygame.draw.rect(self.screen, (244, 244, 240), q_rect, border_radius=4)
-        pygame.draw.rect(self.screen, (205, 205, 198), q_rect, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (248, 248, 244), q_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, q_rect, width=1, border_radius=0)
         self._draw_text("EVALUATE RAPIDLY:", self.font_small, (85, 90, 105), (q_rect.left + 15, q_rect.top + 8))
         self._draw_text(problem.question_text, self.font_hero, (30, 30, 40), (q_rect.centerx, q_rect.centery + 6), center=True)
 
@@ -630,16 +643,16 @@ class UIRenderer:
 
             is_sel = (selected_index == i)
             bg = (215, 230, 252) if is_sel else (246, 246, 242)
-            border_col = (50, 95, 190) if is_sel else (190, 190, 182)
+            border_col = COLOR_PRIMARY_ROSSO if is_sel else (190, 190, 182)
             border_w = 2 if is_sel else 1
-            pygame.draw.rect(self.screen, bg, btn_rect, border_radius=5)
-            pygame.draw.rect(self.screen, border_col, btn_rect, width=border_w, border_radius=5)
+            pygame.draw.rect(self.screen, bg, btn_rect, border_radius=0)
+            pygame.draw.rect(self.screen, border_col, btn_rect, width=border_w, border_radius=0)
 
             # Checkbox square [1], [2], etc.
             chk_rect = pygame.Rect(btn_rect.left + 15, btn_rect.centery - 18, 36, 36)
-            chk_bg = (255, 255, 255) if not is_sel else (225, 238, 255)
-            pygame.draw.rect(self.screen, chk_bg, chk_rect, border_radius=4)
-            pygame.draw.rect(self.screen, (90, 95, 110), chk_rect, width=2, border_radius=4)
+            chk_bg = (255, 255, 255) if not is_sel else (255, 235, 235)
+            pygame.draw.rect(self.screen, chk_bg, chk_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, chk_rect, width=1, border_radius=0)
             self._draw_text(f"[{i + 1}]", self.font_title, (40, 45, 60), chk_rect.center, center=True)
 
             # Answer value in dark charcoal font (30, 30, 40)
@@ -699,8 +712,8 @@ class UIRenderer:
 
         # Imposing Dark Committee Table across Mid-Ground (elevated to clear observation banner)
         table_rect = pygame.Rect(60, 206, self.width - 120, 56)
-        pygame.draw.rect(self.screen, (28, 26, 34), table_rect, border_radius=4)
-        pygame.draw.rect(self.screen, (55, 52, 65), table_rect, width=2, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), table_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, table_rect, width=1, border_radius=0)
         pygame.draw.line(self.screen, (85, 80, 95), (65, 208), (self.width - 65, 208), 2)
 
         for k in range(3):
@@ -710,8 +723,8 @@ class UIRenderer:
             pygame.draw.rect(self.screen, (180, 45, 45), (mx - 85, 214, 6, 18), border_radius=1)
             # Nameplate
             plate_rect = pygame.Rect(mx - 110, 234, 220, 22)
-            pygame.draw.rect(self.screen, (40, 38, 48), plate_rect, border_radius=2)
-            pygame.draw.rect(self.screen, (90, 85, 75), plate_rect, width=1, border_radius=2)
+            pygame.draw.rect(self.screen, (40, 40, 40), plate_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, plate_rect, width=1, border_radius=0)
             self._draw_text(titles[k], self.font_small, (180, 175, 160), plate_rect.center, center=True)
 
         self._draw_text(
@@ -726,11 +739,11 @@ class UIRenderer:
         term_y = 295
         term_h = 405
         term_rect = pygame.Rect(60 + jx, term_y + jy, self.width - 120, term_h)
-        self._draw_card(term_rect, (60, 65, 85), bg_color=(20, 22, 30))
+        self._draw_card(term_rect, COLOR_HAIRLINE, bg_color=(24, 24, 24))
 
         # Terminal Header Bar
         top_bar = pygame.Rect(term_rect.left, term_rect.top, term_rect.width, 36)
-        pygame.draw.rect(self.screen, (30, 34, 46), top_bar, border_top_left_radius=8, border_top_right_radius=8)
+        pygame.draw.rect(self.screen, (36, 36, 36), top_bar, border_top_left_radius=0, border_top_right_radius=0)
         self._draw_text(
             "OFFICIAL STATEMENT TERMINAL — FORMAL SUBMISSION DRAFT",
             self.font_small,
@@ -763,12 +776,12 @@ class UIRenderer:
             orect = pygame.Rect(term_rect.left + 20, oy, term_rect.width - 40, opt_card_h)
 
             is_sel = (selected_index == i)
-            border = COLOR_ACCENT_CYAN if is_sel else ((70, 75, 95) if selected_index is not None else (45, 48, 62))
-            bg = (38, 45, 65) if is_sel else (25, 28, 38)
+            border = COLOR_PRIMARY_ROSSO if is_sel else (COLOR_HAIRLINE_SUBTLE if selected_index is not None else COLOR_HAIRLINE)
+            bg = (54, 32, 32) if is_sel else (28, 28, 28)
             self._draw_card(orect, border, bg)
 
             badge = pygame.Rect(orect.left + 16, orect.centery - 20, 40, 40)
-            pygame.draw.rect(self.screen, COLOR_ACCENT_INDIGO, badge, border_radius=6)
+            pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, badge.center, center=True)
 
             text_rect = pygame.Rect(badge.right + 20, orect.top + 10, orect.width - 85, orect.height - 20)
@@ -800,18 +813,18 @@ class UIRenderer:
         frame_rect = pygame.Rect(frame_x, frame_y, frame_w, frame_h)
 
         # Drop shadow
-        pygame.draw.rect(self.screen, (10, 12, 18), (frame_x + 6, frame_y + 6, frame_w, frame_h), border_radius=18)
+        pygame.draw.rect(self.screen, (16, 16, 16), (frame_x + 6, frame_y + 6, frame_w, frame_h), border_radius=0)
         # Device background
-        pygame.draw.rect(self.screen, (16, 18, 26), frame_rect, border_radius=18)
-        pygame.draw.rect(self.screen, (55, 60, 78), frame_rect, width=2, border_radius=18)
+        pygame.draw.rect(self.screen, (28, 28, 28), frame_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE_SUBTLE, frame_rect, width=1, border_radius=0)
 
         # Chat Header: Group title and online status
         header_rect = pygame.Rect(frame_x, frame_y, frame_w, 54)
-        pygame.draw.rect(self.screen, (24, 28, 40), header_rect, border_top_left_radius=18, border_top_right_radius=18)
-        pygame.draw.line(self.screen, (40, 45, 62), (frame_x, frame_y + 54), (frame_x + frame_w, frame_y + 54), 1)
+        pygame.draw.rect(self.screen, (36, 36, 36), header_rect, border_top_left_radius=0, border_top_right_radius=0)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (frame_x, frame_y + 54), (frame_x + frame_w, frame_y + 54), 1)
 
         # Group avatar circle
-        pygame.draw.circle(self.screen, (48, 56, 76), (frame_x + 30, frame_y + 27), 16)
+        pygame.draw.circle(self.screen, (54, 54, 54), (frame_x + 30, frame_y + 27), 16)
         self._draw_text("CG", self.font_small, COLOR_TEXT_PRIMARY, (frame_x + 30, frame_y + 27), center=True)
 
         # Header titles
@@ -851,8 +864,8 @@ class UIRenderer:
 
             # Chat bubble
             bubble_rect = pygame.Rect(frame_x + 48, by, bubble_w, bubble_h)
-            pygame.draw.rect(self.screen, (28, 32, 45), bubble_rect, border_radius=10)
-            pygame.draw.rect(self.screen, (42, 48, 66), bubble_rect, width=1, border_radius=10)
+            pygame.draw.rect(self.screen, (38, 38, 38), bubble_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, bubble_rect, width=1, border_radius=0)
 
             # Name and timestamp
             self._draw_text(name, self.font_small, col, (bubble_rect.left + 12, bubble_rect.top + 4))
@@ -880,8 +893,8 @@ class UIRenderer:
         typing_y = bubble_y_start + 4 * (bubble_h + bubble_gap)
         if selected_index is None:
             type_rect = pygame.Rect(frame_x + 48, typing_y, 140, 28)
-            pygame.draw.rect(self.screen, (25, 28, 38), type_rect, border_radius=10)
-            pygame.draw.rect(self.screen, (38, 44, 60), type_rect, width=1, border_radius=10)
+            pygame.draw.rect(self.screen, (32, 32, 32), type_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, type_rect, width=1, border_radius=0)
             ticks = pygame.time.get_ticks()
             for d in range(3):
                 phase = (ticks / 200.0 + d * 0.8) % (2.0 * math.pi)
@@ -896,14 +909,14 @@ class UIRenderer:
             out_w = 370
             out_h = 56
             out_rect = pygame.Rect(frame_x + frame_w - out_w - 20, typing_y - 2, out_w, out_h)
-            out_bg = (36, 70, 130) if selected_index == 0 else (110, 40, 50)
-            pygame.draw.rect(self.screen, out_bg, out_rect, border_radius=10)
+            out_bg = (54, 32, 32) if selected_index == 0 else (110, 40, 50)
+            pygame.draw.rect(self.screen, out_bg, out_rect, border_radius=0)
             text_rect = pygame.Rect(out_rect.left + 10, out_rect.top + 6, out_rect.width - 20, out_rect.height - 12)
             self._draw_wrapped_text(opt_text, self.font_small, (255, 255, 255), text_rect, spacing=2)
 
         # Quick-Reply Action Area at bottom of device
         action_y = frame_y + 406
-        pygame.draw.line(self.screen, (35, 40, 55), (frame_x, action_y), (frame_x + frame_w, action_y), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (frame_x, action_y), (frame_x + frame_w, action_y), 1)
         self._draw_text(
             "QUICK REPLY (KEYS 1 – 2):",
             self.font_small,
@@ -920,21 +933,21 @@ class UIRenderer:
             is_sel = (selected_index == i)
 
             if is_sel:
-                bg = (40, 50, 75)
-                border = COLOR_ACCENT_CYAN
-                border_w = 2
+                bg = (54, 32, 32)
+                border = COLOR_PRIMARY_ROSSO
+                border_w = 1
             else:
-                bg = (24, 28, 38)
-                border = (50, 56, 74)
+                bg = (28, 28, 28)
+                border = COLOR_HAIRLINE
                 border_w = 1
 
-            pygame.draw.rect(self.screen, bg, chip_rect, border_radius=8)
-            pygame.draw.rect(self.screen, border, chip_rect, width=border_w, border_radius=8)
+            pygame.draw.rect(self.screen, bg, chip_rect, border_radius=0)
+            pygame.draw.rect(self.screen, border, chip_rect, width=border_w, border_radius=0)
 
             badge = pygame.Rect(chip_rect.left + 12, chip_rect.centery - 16, 32, 32)
-            badge_bg = COLOR_ACCENT_INDIGO if not is_sel else COLOR_ACCENT_CYAN
-            badge_fg = COLOR_TEXT_PRIMARY if not is_sel else (10, 12, 18)
-            pygame.draw.rect(self.screen, badge_bg, badge, border_radius=6)
+            badge_bg = COLOR_PRIMARY_ROSSO if not is_sel else COLOR_PRIMARY_ACTIVE
+            badge_fg = COLOR_TEXT_PRIMARY
+            pygame.draw.rect(self.screen, badge_bg, badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, badge_fg, badge.center, center=True)
 
             text_rect = pygame.Rect(badge.right + 12, chip_rect.top + 8, chip_rect.width - 135, chip_rect.height - 16)
@@ -972,7 +985,7 @@ class UIRenderer:
             COLOR_TIMER_RED,
             (60 + jx, header_y + 30 + jy),
         )
-        pygame.draw.line(self.screen, (50, 54, 70), (60, header_y + 52), (self.width - 60, header_y + 52), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (60, header_y + 52), (self.width - 60, header_y + 52), 1)
 
         # 4 Project Columns / Module Cards
         modules = [
@@ -989,10 +1002,10 @@ class UIRenderer:
             cx = 60 + jx + k * (card_w + 14)
             card_rect = pygame.Rect(cx, cards_y, card_w, card_h)
 
-            border_col = COLOR_TIMER_RED if k == 3 else (45, 50, 68)
+            border_col = COLOR_TIMER_RED if k == 3 else COLOR_HAIRLINE
             border_width = 2 if k == 3 else 1
-            pygame.draw.rect(self.screen, bg_col, card_rect, border_radius=6)
-            pygame.draw.rect(self.screen, border_col, card_rect, width=border_width, border_radius=6)
+            pygame.draw.rect(self.screen, bg_col, card_rect, border_radius=0)
+            pygame.draw.rect(self.screen, border_col, card_rect, width=border_width, border_radius=0)
 
             self._draw_text(mod_title, self.font_body, COLOR_TEXT_PRIMARY, (card_rect.left + 12, card_rect.top + 10))
             self._draw_text(status_text, self.font_small, badge_col, (card_rect.left + 12, card_rect.top + 34))
@@ -1001,7 +1014,7 @@ class UIRenderer:
             if k == 3:
                 # Warning badge on failed core module
                 tag_rect = pygame.Rect(card_rect.right - 70, card_rect.top + 8, 62, 20)
-                pygame.draw.rect(self.screen, COLOR_TIMER_RED, tag_rect, border_radius=3)
+                pygame.draw.rect(self.screen, COLOR_TIMER_RED, tag_rect, border_radius=0)
                 self._draw_text("FAILED", self.font_small, (255, 255, 255), tag_rect.center, center=True)
 
         # Peer Review Submissions (Unanimous Blame Attribution)
@@ -1027,8 +1040,8 @@ class UIRenderer:
             tx = 60 + jx + k * (peer_card_w + 14)
             trect = pygame.Rect(tx, peer_cards_y, peer_card_w, peer_card_h)
 
-            pygame.draw.rect(self.screen, (22, 25, 36), trect, border_radius=6)
-            pygame.draw.rect(self.screen, (50, 55, 75), trect, width=1, border_radius=6)
+            pygame.draw.rect(self.screen, (32, 32, 32), trect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, trect, width=1, border_radius=0)
 
             # Avatar
             avatar_cx = trect.left + 22
@@ -1044,8 +1057,8 @@ class UIRenderer:
 
             # Explicit Blame Attribution Tag
             tag_box = pygame.Rect(trect.left + 8, trect.bottom - 24, trect.width - 16, 18)
-            pygame.draw.rect(self.screen, (55, 18, 24), tag_box, border_radius=3)
-            pygame.draw.rect(self.screen, COLOR_TIMER_RED, tag_box, width=1, border_radius=3)
+            pygame.draw.rect(self.screen, (48, 16, 20), tag_box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_RED, tag_box, width=1, border_radius=0)
             self._draw_text("Failure Attribution: YOU", self.font_mono_small, (255, 110, 110), tag_box.center, center=True)
 
         # Participant Action Panel (Foreground)
@@ -1056,7 +1069,7 @@ class UIRenderer:
 
         # Action Panel Header
         top_bar = pygame.Rect(panel_rect.left, panel_rect.top, panel_rect.width, 34)
-        pygame.draw.rect(self.screen, (28, 32, 45), top_bar, border_top_left_radius=8, border_top_right_radius=8)
+        pygame.draw.rect(self.screen, (36, 36, 36), top_bar, border_top_left_radius=0, border_top_right_radius=0)
         self._draw_text(
             "FORMAL DISCIPLINARY RESPONSE // MANDATORY PLEA ENTRY",
             self.font_small,
@@ -1091,14 +1104,14 @@ class UIRenderer:
             orect = pygame.Rect(panel_rect.left + 20, oy, panel_rect.width - 40, opt_card_h)
             is_sel = (selected_index == i)
 
-            border = COLOR_ACCENT_CYAN if is_sel else ((65, 70, 92) if selected_index is not None else (45, 48, 64))
-            bg = (38, 45, 65) if is_sel else (25, 28, 38)
+            border = COLOR_PRIMARY_ROSSO if is_sel else (COLOR_HAIRLINE_SUBTLE if selected_index is not None else COLOR_HAIRLINE)
+            bg = (54, 32, 32) if is_sel else (28, 28, 28)
             self._draw_card(orect, border, bg_color=bg)
 
             badge = pygame.Rect(orect.left + 14, orect.centery - 18, 36, 36)
-            badge_bg = COLOR_ACCENT_INDIGO if not is_sel else COLOR_ACCENT_CYAN
-            badge_fg = COLOR_TEXT_PRIMARY if not is_sel else (10, 12, 18)
-            pygame.draw.rect(self.screen, badge_bg, badge, border_radius=6)
+            badge_bg = COLOR_PRIMARY_ROSSO if not is_sel else COLOR_PRIMARY_ACTIVE
+            badge_fg = COLOR_TEXT_PRIMARY
+            pygame.draw.rect(self.screen, badge_bg, badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, badge_fg, badge.center, center=True)
 
             text_rect = pygame.Rect(badge.right + 18, orect.top + 8, orect.width - 180, orect.height - 16)
@@ -1147,10 +1160,10 @@ class UIRenderer:
         header_rect = pygame.Rect(50, 95, self.width - 100, 32)
         self._draw_text("CHAMBER: VAULT-03 // DIGITAL MARSHMALLOW PARADIGM", self.font_small, (130, 140, 165), (header_rect.left + 14, header_rect.centery), midleft=True)
         self._draw_text("EXPONENTIAL VALUE MULTIPLIER", self.font_small, COLOR_ACCENT_CYAN, (header_rect.right - 14, header_rect.centery), midright=True)
-        pygame.draw.line(self.screen, (35, 40, 58), (50, 130), (self.width - 50, 130), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (50, 130), (self.width - 50, 130), 1)
 
         # Ambient floor horizon line and perspective guide
-        pygame.draw.line(self.screen, (28, 32, 46), (0, 430), (self.width, 430), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (0, 430), (self.width, 430), 1)
 
         # 1. Left Wall: Vertical Stability Gauge (positioned cleanly below chamber line y=130)
         card_w = 130
@@ -1158,7 +1171,7 @@ class UIRenderer:
         card_top = 146 + oy
         card_h = 334
         gauge_card = pygame.Rect(card_left, card_top, card_w, card_h)
-        self._draw_card(gauge_card, border_color=(45, 50, 72), bg_color=(16, 18, 26))
+        self._draw_card(gauge_card, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
         self._draw_text("CORE STABILITY", self.font_small, COLOR_TEXT_SECONDARY, (gauge_card.centerx, card_top + 18), center=True)
 
         # Gauge track centered in card
@@ -1168,8 +1181,8 @@ class UIRenderer:
         gy = card_top + 38
         stability_frac = max(0.0, min(1.0, 1.0 - instability))
 
-        pygame.draw.rect(self.screen, (22, 25, 36), (gx, gy, gw, gh), border_radius=4)
-        pygame.draw.rect(self.screen, (48, 54, 76), (gx, gy, gw, gh), width=2, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), (gx, gy, gw, gh), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, (gx, gy, gw, gh), width=1, border_radius=0)
 
         # Meter fill
         if stability_frac > 0.6:
@@ -1182,7 +1195,7 @@ class UIRenderer:
         fill_h = int(gh * stability_frac)
         if fill_h > 4:
             fill_rect = pygame.Rect(gx + 2, gy + gh - fill_h + 2, gw - 4, fill_h - 4)
-            pygame.draw.rect(self.screen, meter_col, fill_rect, border_radius=2)
+            pygame.draw.rect(self.screen, meter_col, fill_rect, border_radius=0)
 
         # Tick marks
         for tick_idx in range(1, 5):
@@ -1240,11 +1253,11 @@ class UIRenderer:
             # Outer glow aura
             aura_rect = chest_rect.inflate(16, 16)
             aura_color = (max(0, glow_r // 6), max(0, glow_g // 6), max(0, glow_b // 6))
-            pygame.draw.rect(self.screen, aura_color, aura_rect, border_radius=12)
+            pygame.draw.rect(self.screen, aura_color, aura_rect, border_radius=0)
 
             # Chest chassis
-            pygame.draw.rect(self.screen, (26, 30, 44), chest_rect, border_radius=10)
-            pygame.draw.rect(self.screen, (46, 54, 78), chest_rect, width=3, border_radius=10)
+            pygame.draw.rect(self.screen, (36, 36, 36), chest_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE_SUBTLE, chest_rect, width=1, border_radius=0)
 
             # Corner reinforcement plates
             c_size = int(22 * scale)
@@ -1254,15 +1267,15 @@ class UIRenderer:
                 (chest_rect.left, chest_rect.bottom - c_size),
                 (chest_rect.right - c_size, chest_rect.bottom - c_size),
             ]:
-                pygame.draw.rect(self.screen, (38, 44, 64), (c_x, c_y, c_size, c_size), border_radius=3)
-                pygame.draw.rect(self.screen, (58, 66, 94), (c_x, c_y, c_size, c_size), width=1, border_radius=3)
+                pygame.draw.rect(self.screen, (48, 48, 48), (c_x, c_y, c_size, c_size), border_radius=0)
+                pygame.draw.rect(self.screen, COLOR_HAIRLINE_SUBTLE, (c_x, c_y, c_size, c_size), width=1, border_radius=0)
                 pygame.draw.circle(self.screen, (80, 90, 120), (c_x + c_size // 2, c_y + c_size // 2), 2)
 
             # Lid (upper 36%)
             lid_h = int(ch * 0.36)
             lid_rect = pygame.Rect(chest_rect.left, chest_rect.top, cw, lid_h)
-            pygame.draw.rect(self.screen, (34, 39, 58), lid_rect, border_top_left_radius=10, border_top_right_radius=10)
-            pygame.draw.rect(self.screen, (60, 70, 98), lid_rect, width=2, border_top_left_radius=10, border_top_right_radius=10)
+            pygame.draw.rect(self.screen, (34, 39, 58), lid_rect, border_top_left_radius=0, border_top_right_radius=0)
+            pygame.draw.rect(self.screen, (60, 70, 98), lid_rect, width=2, border_top_left_radius=0, border_top_right_radius=0)
 
             # Dividing seam line
             seam_y = chest_rect.top + lid_h
@@ -1273,8 +1286,8 @@ class UIRenderer:
             lock_w = int(64 * scale)
             lock_h = int(46 * scale)
             lock_rect = pygame.Rect(cx - lock_w // 2, seam_y - lock_h // 2, lock_w, lock_h)
-            pygame.draw.rect(self.screen, (18, 20, 30), lock_rect, border_radius=6)
-            pygame.draw.rect(self.screen, glow_color, lock_rect, width=2, border_radius=6)
+            pygame.draw.rect(self.screen, (24, 24, 24), lock_rect, border_radius=0)
+            pygame.draw.rect(self.screen, glow_color, lock_rect, width=1, border_radius=0)
 
             core_r = max(4, int(10 * scale + math.sin(time_remaining_s * 6.0) * 2.5))
             pygame.draw.circle(self.screen, glow_color, lock_rect.center, core_r)
@@ -1301,8 +1314,8 @@ class UIRenderer:
 
         else:
             # Shattered / collapsed chest graphic
-            pygame.draw.rect(self.screen, (20, 22, 30), chest_rect, border_radius=6)
-            pygame.draw.rect(self.screen, COLOR_TIMER_RED, chest_rect, width=2, border_radius=6)
+            pygame.draw.rect(self.screen, (32, 32, 32), chest_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_RED, chest_rect, width=1, border_radius=0)
             pygame.draw.line(self.screen, COLOR_TIMER_RED, chest_rect.topleft, chest_rect.bottomright, 3)
             pygame.draw.line(self.screen, COLOR_TIMER_RED, chest_rect.topright, chest_rect.bottomleft, 3)
             self._draw_text("CHEST COLLAPSED", self.font_hero, COLOR_TIMER_RED, (cx, cy - 10), center=True)
@@ -1312,7 +1325,7 @@ class UIRenderer:
         counter_h = 72
         counter_top = 152 + oy
         counter_card = pygame.Rect(cx - 160, counter_top, 320, counter_h)
-        self._draw_card(counter_card, border_color=glow_color, bg_color=(20, 24, 38))
+        self._draw_card(counter_card, border_color=glow_color, bg_color=COLOR_CARD_BG)
         self._draw_text("ACCUMULATED MULTIPLIER", self.font_small, (150, 160, 185), (cx, counter_top + 16), center=True)
         val_str = f"x{current_val}" if not is_collapsed else "0"
         self._draw_text(val_str, self.font_hero, glow_color, (cx, counter_top + 46), center=True)
@@ -1337,12 +1350,12 @@ class UIRenderer:
         # Option 1: CLAIM NOW
         r1 = pygame.Rect(self.width // 2 - card_w - 20 + ox, card_y, card_w, card_h)
         is_sel1 = (selected_index == 0)
-        b1 = COLOR_TIMER_GREEN if is_sel1 else ((0, 180, 100) if selected_index is None else (50, 58, 72))
+        b1 = COLOR_TIMER_GREEN if is_sel1 else (COLOR_TIMER_GREEN if selected_index is None else COLOR_HAIRLINE)
         bg1 = (28, 48, 40) if is_sel1 else COLOR_CARD_BG
         self._draw_card(r1, border_color=b1, bg_color=bg1)
 
         k1 = pygame.Rect(r1.left + 16, r1.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, (0, 180, 100), k1, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, k1, border_radius=0)
         self._draw_text("1", self.font_title, COLOR_TEXT_PRIMARY, k1.center, center=True)
 
         self._draw_text("CLAIM NOW", self.font_title, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1.right + 18, r1.top + 14))
@@ -1351,12 +1364,12 @@ class UIRenderer:
         # Option 2: KEEP WAITING
         r2 = pygame.Rect(self.width // 2 + 20 + ox, card_y, card_w, card_h)
         is_sel2 = (selected_index == 1)
-        b2 = COLOR_TIMER_AMBER if is_sel2 else ((180, 130, 0) if selected_index is None else (50, 58, 72))
+        b2 = COLOR_TIMER_AMBER if is_sel2 else (COLOR_TIMER_AMBER if selected_index is None else COLOR_HAIRLINE)
         bg2 = (48, 42, 28) if is_sel2 else COLOR_CARD_BG
         self._draw_card(r2, border_color=b2, bg_color=bg2)
 
         k2 = pygame.Rect(r2.left + 16, r2.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, (180, 130, 0), k2, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, k2, border_radius=0)
         self._draw_text("2", self.font_title, COLOR_TEXT_PRIMARY, k2.center, center=True)
 
         self._draw_text("KEEP WAITING", self.font_title, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2.right + 18, r2.top + 14))
@@ -1387,13 +1400,13 @@ class UIRenderer:
         win_rect = pygame.Rect(self.width // 2 - win_w // 2 + ox, 90 + oy, win_w, win_h)
 
         # Window Frame Background & Border
-        pygame.draw.rect(self.screen, (18, 20, 28), win_rect, border_radius=8)
-        pygame.draw.rect(self.screen, (48, 54, 76), win_rect, width=2, border_radius=8)
+        pygame.draw.rect(self.screen, (28, 28, 28), win_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, win_rect, width=1, border_radius=0)
 
         # Window Title Bar (Header)
         hdr_h = 36
         hdr_rect = pygame.Rect(win_rect.left, win_rect.top, win_w, hdr_h)
-        pygame.draw.rect(self.screen, (26, 30, 44), hdr_rect, border_top_left_radius=8, border_top_right_radius=8)
+        pygame.draw.rect(self.screen, (26, 30, 44), hdr_rect, border_top_left_radius=0, border_top_right_radius=0)
         pygame.draw.line(self.screen, (44, 50, 70), (win_rect.left, hdr_rect.bottom), (win_rect.right, hdr_rect.bottom), 1)
 
         # Window Controls (macOS / modern desktop style dots)
@@ -1429,8 +1442,8 @@ class UIRenderer:
 
         # 2. Document Page Surface (Canvas)
         canvas_rect = pygame.Rect(win_rect.left + 24, ribbon_rect.bottom + 12, win_w - 48, win_h - 115)
-        pygame.draw.rect(self.screen, (240, 242, 246), canvas_rect, border_radius=4)
-        pygame.draw.rect(self.screen, (200, 205, 218), canvas_rect, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (244, 244, 240), canvas_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, canvas_rect, width=1, border_radius=0)
 
         # Margins inside document
         margin_x = canvas_rect.left + 45
@@ -1490,8 +1503,8 @@ class UIRenderer:
 
         # Revision tag bubble in right margin (safely anchored inside canvas right border)
         rev_tag_rect = pygame.Rect(canvas_rect.right - 185, base_y2 + 2, 170, 26)
-        pygame.draw.rect(self.screen, (255, 245, 210), rev_tag_rect, border_radius=4)
-        pygame.draw.rect(self.screen, (210, 160, 50), rev_tag_rect, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (255, 245, 210), rev_tag_rect, border_radius=0)
+        pygame.draw.rect(self.screen, (210, 160, 50), rev_tag_rect, width=1, border_radius=0)
         self._draw_text("[Unsaved Edits: Rev 4.2]", self.font_small, (150, 100, 20), rev_tag_rect.center, center=True)
 
         # Paragraph 3
@@ -1512,8 +1525,8 @@ class UIRenderer:
         # 3. Document Editor Bottom Status Bar
         status_h = 30
         status_rect = pygame.Rect(win_rect.left, win_rect.bottom - status_h, win_w, status_h)
-        pygame.draw.rect(self.screen, (22, 25, 36), status_rect, border_bottom_left_radius=8, border_bottom_right_radius=8)
-        pygame.draw.line(self.screen, (40, 45, 62), (win_rect.left, status_rect.top), (win_rect.right, status_rect.top), 1)
+        pygame.draw.rect(self.screen, (28, 28, 28), status_rect, border_bottom_left_radius=0, border_bottom_right_radius=0)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (win_rect.left, status_rect.top), (win_rect.right, status_rect.top), 1)
 
         self._draw_text(
             "Words: 3,420    |    Characters: 21,850    |    Page 6 of 6",
@@ -1558,7 +1571,7 @@ class UIRenderer:
             self._draw_card(r, border_color=border_col, bg_color=bg_col)
 
             k_badge = pygame.Rect(r.left + 14, r.centery - 18, 36, 36)
-            pygame.draw.rect(self.screen, key_bg, k_badge, border_radius=6)
+            pygame.draw.rect(self.screen, key_bg, k_badge, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             self._draw_text(tag_label, self.font_small, tag_col if is_sel else (180, 190, 210), (k_badge.right + 14, r.top + 10))
@@ -1589,7 +1602,7 @@ class UIRenderer:
 
         # 1. Header: Tactical tournament telemetry bar
         header_rect = pygame.Rect(50 + ox, 90 + oy, self.width - 100, 48)
-        self._draw_card(header_rect, border_color=(50, 60, 85), bg_color=(18, 22, 34))
+        self._draw_card(header_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
 
         self._draw_text(
             "CURRENT DIVISION STANDING: TIER 1 BRACKET",
@@ -1616,13 +1629,13 @@ class UIRenderer:
         # -------------------------------------------------------------
         c1_rect = pygame.Rect(start_x, card_y, cw, ch)
         is_sel1 = (selected_index == 0)
-        border1 = COLOR_TIMER_GREEN if is_sel1 else ((0, 180, 120) if selected_index is None else (45, 55, 75))
-        bg1 = (22, 38, 32) if is_sel1 else (20, 24, 36)
+        border1 = COLOR_TIMER_GREEN if is_sel1 else (COLOR_TIMER_GREEN if selected_index is None else COLOR_HAIRLINE)
+        bg1 = (22, 38, 32) if is_sel1 else (28, 28, 28)
         self._draw_card(c1_rect, border_color=border1, bg_color=bg1)
 
         # Card header badge
         k1_badge = pygame.Rect(c1_rect.left + 16, c1_rect.top + 16, 36, 36)
-        pygame.draw.rect(self.screen, (0, 180, 120), k1_badge, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, k1_badge, border_radius=0)
         self._draw_text("1", self.font_title, COLOR_TEXT_PRIMARY, k1_badge.center, center=True)
 
         self._draw_text("Strategy Alpha", self.font_body, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1_badge.right + 14, c1_rect.top + 12))
@@ -1630,16 +1643,16 @@ class UIRenderer:
 
         # Projected score box
         box1 = pygame.Rect(c1_rect.left + 16, c1_rect.top + 68, cw - 32, 64)
-        pygame.draw.rect(self.screen, (16, 26, 26), box1, border_radius=6)
-        pygame.draw.rect(self.screen, (0, 160, 100), box1, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 28, 28), box1, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, box1, width=1, border_radius=0)
         self._draw_text("+8% AVG", self.font_hero, COLOR_TIMER_GREEN, (box1.centerx, box1.top + 22), center=True)
         self._draw_text("Projected Round Gain", self.font_small, (140, 160, 160), (box1.centerx, box1.top + 48), center=True)
 
         # Variance metric
         self._draw_text("Variance: LOW (σ = ±1.5%)", self.font_small, (160, 175, 195), (c1_rect.left + 16, c1_rect.top + 144))
         var_bar1 = pygame.Rect(c1_rect.left + 16, c1_rect.top + 164, cw - 32, 8)
-        pygame.draw.rect(self.screen, (28, 34, 48), var_bar1, border_radius=4)
-        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (var_bar1.left, var_bar1.top, int(var_bar1.width * 0.92), var_bar1.height), border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), var_bar1, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (var_bar1.left, var_bar1.top, int(var_bar1.width * 0.92), var_bar1.height), border_radius=0)
 
         # Historical Telemetry Bars (6/6 complete & verified)
         self._draw_text("HISTORICAL TELEMETRY (6 ROUNDS)", self.font_small, (140, 150, 170), (c1_rect.left + 16, c1_rect.top + 184))
@@ -1651,13 +1664,13 @@ class UIRenderer:
             bx = c1_rect.left + 16 + idx * (bar_w + 8)
             bh = int(val * 4.5)
             by = chart_base_y - bh
-            pygame.draw.rect(self.screen, (0, 190, 120), (bx, by, bar_w, bh), border_radius=3)
+            pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (bx, by, bar_w, bh), border_radius=0)
             self._draw_text(f"R{idx+1}", self.font_small, (120, 135, 145), (bx + bar_w // 2, chart_base_y + 10), center=True)
 
         # Verified audit tag
         audit_tag = pygame.Rect(c1_rect.left + 16, c1_rect.top + 325, cw - 32, 38)
-        pygame.draw.rect(self.screen, (18, 38, 30), audit_tag, border_radius=6)
-        pygame.draw.rect(self.screen, (0, 180, 100), audit_tag, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 38, 28), audit_tag, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, audit_tag, width=1, border_radius=0)
         self._draw_text("[OK] 6/6 ROUNDS AUDITED & VERIFIED", self.font_small, COLOR_TIMER_GREEN, audit_tag.center, center=True)
 
         # Risk rating & description
@@ -1670,12 +1683,12 @@ class UIRenderer:
         # -------------------------------------------------------------
         c2_rect = pygame.Rect(start_x + cw + gap, card_y, cw, ch)
         is_sel2 = (selected_index == 1)
-        border2 = COLOR_TIMER_AMBER if is_sel2 else ((180, 130, 0) if selected_index is None else (45, 55, 75))
-        bg2 = (38, 32, 22) if is_sel2 else (20, 24, 36)
+        border2 = COLOR_TIMER_AMBER if is_sel2 else (COLOR_TIMER_AMBER if selected_index is None else COLOR_HAIRLINE)
+        bg2 = (38, 32, 22) if is_sel2 else (28, 28, 28)
         self._draw_card(c2_rect, border_color=border2, bg_color=bg2)
 
         k2_badge = pygame.Rect(c2_rect.left + 16, c2_rect.top + 16, 36, 36)
-        pygame.draw.rect(self.screen, (220, 140, 0), k2_badge, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, k2_badge, border_radius=0)
         self._draw_text("2", self.font_title, COLOR_TEXT_PRIMARY, k2_badge.center, center=True)
 
         self._draw_text("Strategy Beta", self.font_body, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2_badge.right + 14, c2_rect.top + 12))
@@ -1683,16 +1696,16 @@ class UIRenderer:
 
         # Projected score box
         box2 = pygame.Rect(c2_rect.left + 16, c2_rect.top + 68, cw - 32, 64)
-        pygame.draw.rect(self.screen, (32, 26, 16), box2, border_radius=6)
-        pygame.draw.rect(self.screen, (180, 120, 0), box2, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 28, 28), box2, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, box2, width=1, border_radius=0)
         self._draw_text("+22% AVG", self.font_hero, COLOR_TIMER_AMBER, (box2.centerx, box2.top + 22), center=True)
         self._draw_text("Projected Round Gain", self.font_small, (180, 160, 140), (box2.centerx, box2.top + 48), center=True)
 
         # Variance metric
         self._draw_text("Variance: HIGH (σ = ±14.2%)", self.font_small, (160, 175, 195), (c2_rect.left + 16, c2_rect.top + 144))
         var_bar2 = pygame.Rect(c2_rect.left + 16, c2_rect.top + 164, cw - 32, 8)
-        pygame.draw.rect(self.screen, (28, 34, 48), var_bar2, border_radius=4)
-        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, (var_bar2.left, var_bar2.top, int(var_bar2.width * 0.52), var_bar2.height), border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), var_bar2, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, (var_bar2.left, var_bar2.top, int(var_bar2.width * 0.52), var_bar2.height), border_radius=0)
 
         # Historical Telemetry Bars (4 verified, 2 missing/untracked)
         self._draw_text("HISTORICAL TELEMETRY (4/6 ROUNDS)", self.font_small, (140, 150, 170), (c2_rect.left + 16, c2_rect.top + 184))
@@ -1702,11 +1715,11 @@ class UIRenderer:
             if idx < 4:
                 bh = int(r2_vals[idx] * 2.2)
                 by = chart_base_y - bh
-                pygame.draw.rect(self.screen, (220, 150, 20), (bx, by, bar_w, bh), border_radius=3)
+                pygame.draw.rect(self.screen, (220, 150, 20), (bx, by, bar_w, bh), border_radius=0)
             else:
                 # Corrupted / Missing bar with hatched border
-                pygame.draw.rect(self.screen, (35, 28, 20), (bx, chart_base_y - 45, bar_w, 45), border_radius=3)
-                pygame.draw.rect(self.screen, (160, 100, 20), (bx, chart_base_y - 45, bar_w, 45), width=1, border_radius=3)
+                pygame.draw.rect(self.screen, (35, 28, 20), (bx, chart_base_y - 45, bar_w, 45), border_radius=0)
+                pygame.draw.rect(self.screen, (160, 100, 20), (bx, chart_base_y - 45, bar_w, 45), width=1, border_radius=0)
                 self._draw_text("?", self.font_body, (190, 130, 20), (bx + bar_w // 2, chart_base_y - 25), center=True)
             self._draw_text(f"R{idx+1}", self.font_small, (120, 135, 145), (bx + bar_w // 2, chart_base_y + 10), center=True)
 
@@ -1717,8 +1730,8 @@ class UIRenderer:
         amber_tag_bg = (int(38 + 20 * pulse_1hz), int(26 + 15 * pulse_1hz), 10)
 
         tag2 = pygame.Rect(c2_rect.left + 16, c2_rect.top + 325, cw - 32, 38)
-        pygame.draw.rect(self.screen, amber_tag_bg, tag2, border_radius=6)
-        pygame.draw.rect(self.screen, amber_pulse_col, tag2, width=2, border_radius=6)
+        pygame.draw.rect(self.screen, amber_tag_bg, tag2, border_radius=0)
+        pygame.draw.rect(self.screen, amber_pulse_col, tag2, width=1, border_radius=0)
         self._draw_text("[ 2 ROUNDS UNTRACKED ]", self.font_small, amber_pulse_col, tag2.center, center=True)
 
         # Risk rating & description
@@ -1731,12 +1744,12 @@ class UIRenderer:
         # -------------------------------------------------------------
         c3_rect = pygame.Rect(start_x + (cw + gap) * 2, card_y, cw, ch)
         is_sel3 = (selected_index == 2)
-        border3 = COLOR_TIMER_RED if is_sel3 else ((200, 50, 50) if selected_index is None else (45, 55, 75))
-        bg3 = (42, 22, 26) if is_sel3 else (20, 24, 36)
+        border3 = COLOR_TIMER_RED if is_sel3 else (COLOR_TIMER_RED if selected_index is None else COLOR_HAIRLINE)
+        bg3 = (45, 25, 25) if is_sel3 else (28, 28, 28)
         self._draw_card(c3_rect, border_color=border3, bg_color=bg3)
 
         k3_badge = pygame.Rect(c3_rect.left + 16, c3_rect.top + 16, 36, 36)
-        pygame.draw.rect(self.screen, (220, 50, 50), k3_badge, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, k3_badge, border_radius=0)
         self._draw_text("3", self.font_title, COLOR_TEXT_PRIMARY, k3_badge.center, center=True)
 
         self._draw_text("Strategy Gamma", self.font_body, COLOR_TIMER_RED if is_sel3 else COLOR_TEXT_PRIMARY, (k3_badge.right + 14, c3_rect.top + 12))
@@ -1744,16 +1757,16 @@ class UIRenderer:
 
         # Projected score box
         box3 = pygame.Rect(c3_rect.left + 16, c3_rect.top + 68, cw - 32, 64)
-        pygame.draw.rect(self.screen, (36, 18, 22), box3, border_radius=6)
-        pygame.draw.rect(self.screen, (190, 40, 50), box3, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 28, 28), box3, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, box3, width=1, border_radius=0)
         self._draw_text("+45% AVG", self.font_hero, (255, 80, 80), (box3.centerx, box3.top + 22), center=True)
         self._draw_text("Projected Round Gain", self.font_small, (200, 150, 150), (box3.centerx, box3.top + 48), center=True)
 
         # Variance metric
         self._draw_text("Variance: EXTREME (σ = ±38.0%)", self.font_small, (160, 175, 195), (c3_rect.left + 16, c3_rect.top + 144))
         var_bar3 = pygame.Rect(c3_rect.left + 16, c3_rect.top + 164, cw - 32, 8)
-        pygame.draw.rect(self.screen, (28, 34, 48), var_bar3, border_radius=4)
-        pygame.draw.rect(self.screen, COLOR_TIMER_RED, (var_bar3.left, var_bar3.top, int(var_bar3.width * 0.18), var_bar3.height), border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), var_bar3, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_RED, (var_bar3.left, var_bar3.top, int(var_bar3.width * 0.18), var_bar3.height), border_radius=0)
 
         # Historical Telemetry Bars (2 verified, 4 missing/untracked)
         self._draw_text("HISTORICAL TELEMETRY (2/6 ROUNDS)", self.font_small, (140, 150, 170), (c3_rect.left + 16, c3_rect.top + 184))
@@ -1763,11 +1776,11 @@ class UIRenderer:
             if idx < 2:
                 bh = int(r3_vals[idx] * 1.5)
                 by = chart_base_y - bh
-                pygame.draw.rect(self.screen, (240, 60, 60), (bx, by, bar_w, bh), border_radius=3)
+                pygame.draw.rect(self.screen, (240, 60, 60), (bx, by, bar_w, bh), border_radius=0)
             else:
                 # Corrupted / Missing bar with red flashing outline
-                pygame.draw.rect(self.screen, (40, 16, 20), (bx, chart_base_y - 55, bar_w, 55), border_radius=3)
-                pygame.draw.rect(self.screen, (200, 40, 50), (bx, chart_base_y - 55, bar_w, 55), width=1, border_radius=3)
+                pygame.draw.rect(self.screen, (40, 16, 20), (bx, chart_base_y - 55, bar_w, 55), border_radius=0)
+                pygame.draw.rect(self.screen, (200, 40, 50), (bx, chart_base_y - 55, bar_w, 55), width=1, border_radius=0)
                 self._draw_text("!", self.font_body, (255, 80, 80), (bx + bar_w // 2, chart_base_y - 30), center=True)
             self._draw_text(f"R{idx+1}", self.font_small, (120, 135, 145), (bx + bar_w // 2, chart_base_y + 10), center=True)
 
@@ -1777,8 +1790,8 @@ class UIRenderer:
         red_tag_bg = (55, 16, 22) if blink_on else (28, 12, 16)
 
         tag3 = pygame.Rect(c3_rect.left + 16, c3_rect.top + 325, cw - 32, 38)
-        pygame.draw.rect(self.screen, red_tag_bg, tag3, border_radius=6)
-        pygame.draw.rect(self.screen, red_blink_col, tag3, width=2, border_radius=6)
+        pygame.draw.rect(self.screen, red_tag_bg, tag3, border_radius=0)
+        pygame.draw.rect(self.screen, red_blink_col, tag3, width=1, border_radius=0)
         self._draw_text("[ 4 ROUNDS UNTRACKED — EXTREME VARIANCE ]", self.font_small, red_blink_col, tag3.center, center=True)
 
         # Risk rating & description
@@ -1825,7 +1838,7 @@ class UIRenderer:
 
         # 1. Top Navigation Bar (Creator Studio)
         nav_rect = pygame.Rect(50 + ox, 90 + oy, self.width - 100, 44)
-        self._draw_card(nav_rect, border_color=(45, 52, 75), bg_color=(18, 22, 32))
+        self._draw_card(nav_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
 
         # Live feed indicator
         pygame.draw.circle(self.screen, COLOR_TIMER_RED, (nav_rect.left + 22, nav_rect.centery), 5)
@@ -1843,7 +1856,7 @@ class UIRenderer:
         panel_w = 920
         panel_h = 280
         panel_rect = pygame.Rect(self.width // 2 - panel_w // 2 + ox, 150 + oy, panel_w, panel_h)
-        self._draw_card(panel_rect, border_color=(50, 58, 82), bg_color=(20, 24, 36))
+        self._draw_card(panel_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
 
         # Audience Reach Meter (Large Dynamic Counter)
         self._draw_text(
@@ -1888,13 +1901,13 @@ class UIRenderer:
         )
 
         # Gauge track
-        pygame.draw.rect(self.screen, (15, 18, 26), (gauge_x, gauge_y, gauge_w, gauge_h), border_radius=6)
-        pygame.draw.rect(self.screen, (45, 52, 74), (gauge_x, gauge_y, gauge_w, gauge_h), width=2, border_radius=6)
+        pygame.draw.rect(self.screen, (32, 32, 32), (gauge_x, gauge_y, gauge_w, gauge_h), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, (gauge_x, gauge_y, gauge_w, gauge_h), width=1, border_radius=0)
 
         # Fill bar
         fill_w = max(0, min(gauge_w - 4, int((gauge_w - 4) * instability)))
         if fill_w > 4:
-            pygame.draw.rect(self.screen, risk_color, (gauge_x + 2, gauge_y + 2, fill_w, gauge_h - 4), border_radius=4)
+            pygame.draw.rect(self.screen, risk_color, (gauge_x + 2, gauge_y + 2, fill_w, gauge_h - 4), border_radius=0)
 
         # Segmentation lines every 20%
         for tick_idx in range(1, 5):
@@ -1918,12 +1931,12 @@ class UIRenderer:
         # Option 1: SECURE REACH (Stop Posting)
         r1 = pygame.Rect(self.width // 2 - card_w - 15 + ox, card_y, card_w, card_h)
         is_sel1 = (selected_index == 0)
-        b1 = COLOR_TIMER_GREEN if is_sel1 else ((0, 180, 120) if selected_index is None else (50, 56, 72))
+        b1 = COLOR_TIMER_GREEN if is_sel1 else (COLOR_TIMER_GREEN if selected_index is None else COLOR_HAIRLINE)
         bg1 = (24, 46, 38) if is_sel1 else COLOR_CARD_BG
         self._draw_card(r1, border_color=b1, bg_color=bg1)
 
         k1 = pygame.Rect(r1.left + 16, r1.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, (0, 180, 120), k1, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, k1, border_radius=0)
         self._draw_text("1", self.font_title, COLOR_TEXT_PRIMARY, k1.center, center=True)
 
         self._draw_text("SECURE REACH (Stop Posting)", self.font_body, COLOR_TIMER_GREEN if is_sel1 else COLOR_TEXT_PRIMARY, (k1.right + 16, r1.top + 12))
@@ -1938,7 +1951,7 @@ class UIRenderer:
         self._draw_card(r2, border_color=b2, bg_color=bg2)
 
         k2 = pygame.Rect(r2.left + 16, r2.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, (190, 120, 20), k2, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO if instability >= 0.75 else COLOR_TIMER_AMBER, k2, border_radius=0)
         self._draw_text("2", self.font_title, COLOR_TEXT_PRIMARY, k2.center, center=True)
 
         self._draw_text("POST ANOTHER (Escalate Reach)", self.font_body, COLOR_TIMER_AMBER if is_sel2 else COLOR_TEXT_PRIMARY, (k2.right + 16, r2.top + 12))
@@ -2028,14 +2041,14 @@ class UIRenderer:
         # =============================================================
         # Left Panel (Evidence Log, 45% width): Dark Terminal Container
         # =============================================================
-        pygame.draw.rect(self.screen, (10, 12, 18), left_rect, border_radius=8)
-        pygame.draw.rect(self.screen, (40, 48, 68), left_rect, width=2, border_radius=8)
+        pygame.draw.rect(self.screen, (20, 20, 20), left_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, left_rect, width=1, border_radius=0)
 
         # Terminal Header Bar
         hdr_h = 36
         term_hdr = pygame.Rect(left_rect.left, left_rect.top, w_left, hdr_h)
-        pygame.draw.rect(self.screen, (20, 24, 34), term_hdr, border_top_left_radius=8, border_top_right_radius=8)
-        pygame.draw.line(self.screen, (40, 48, 68), (left_rect.left, term_hdr.bottom), (left_rect.right, term_hdr.bottom), 1)
+        pygame.draw.rect(self.screen, (36, 36, 36), term_hdr, border_top_left_radius=0, border_top_right_radius=0)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (left_rect.left, term_hdr.bottom), (left_rect.right, term_hdr.bottom), 1)
 
         # Window controls
         dots = [
@@ -2083,8 +2096,8 @@ class UIRenderer:
         for idx, (tag, detail, tag_col, det_col) in enumerate(log_entries):
             ey = log_start_y + idx * entry_h
             entry_box = pygame.Rect(left_rect.left + 16, ey - 4, w_left - 32, 38)
-            pygame.draw.rect(self.screen, (16, 20, 30), entry_box, border_radius=4)
-            pygame.draw.rect(self.screen, (32, 40, 58), entry_box, width=1, border_radius=4)
+            pygame.draw.rect(self.screen, (32, 32, 32), entry_box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, entry_box, width=1, border_radius=0)
 
             self._draw_text(tag, self.font_mono_small, tag_col, (entry_box.left + 12, ey + 4))
             tag_w = self.font_mono_small.size(tag)[0]
@@ -2104,8 +2117,8 @@ class UIRenderer:
 
         # Institutional Policy Callout Box at bottom of left panel
         clause_box = pygame.Rect(left_rect.left + 16, left_rect.bottom - 92, w_left - 32, 76)
-        pygame.draw.rect(self.screen, (32, 14, 18), clause_box, border_radius=6)
-        pygame.draw.rect(self.screen, (180, 50, 60), clause_box, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, (40, 18, 20), clause_box, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_RED, clause_box, width=1, border_radius=0)
 
         self._draw_text("CAMPUS IT POLICY — SECTION 4.2.1", self.font_small, (255, 100, 100), (clause_box.left + 14, clause_box.top + 10))
         self._draw_text(
@@ -2124,12 +2137,12 @@ class UIRenderer:
         # =============================================================
         # Right Panel (Decision Terminal, 55% width): 3 Dilemma Cards
         # =============================================================
-        pygame.draw.rect(self.screen, (18, 22, 32), right_rect, border_radius=8)
-        pygame.draw.rect(self.screen, (40, 48, 68), right_rect, width=2, border_radius=8)
+        pygame.draw.rect(self.screen, (24, 24, 24), right_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, right_rect, width=1, border_radius=0)
 
         # Right Header
         r_hdr = pygame.Rect(right_rect.left, right_rect.top, w_right, hdr_h)
-        pygame.draw.rect(self.screen, (24, 28, 42), r_hdr, border_top_left_radius=8, border_top_right_radius=8)
+        pygame.draw.rect(self.screen, (24, 28, 42), r_hdr, border_top_left_radius=0, border_top_right_radius=0)
         pygame.draw.line(self.screen, (40, 48, 68), (right_rect.left, r_hdr.bottom), (right_rect.right, r_hdr.bottom), 1)
 
         self._draw_text(
@@ -2181,13 +2194,13 @@ class UIRenderer:
             c_rect = pygame.Rect(right_rect.left + 20, cy, w_right - 40, card_h)
 
             is_sel = (selected_index == i)
-            border_col = accent_col if is_sel else ((60, 70, 95) if selected_index is not None else (40, 48, 68))
+            border_col = accent_col if is_sel else (COLOR_HAIRLINE if selected_index is not None else COLOR_HAIRLINE)
             card_bg = bg_col if is_sel else COLOR_CARD_BG
             self._draw_card(c_rect, border_color=border_col, bg_color=card_bg)
 
             # Key Badge
             k_badge = pygame.Rect(c_rect.left + 16, c_rect.top + 16, 36, 36)
-            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=6)
+            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=0)
             self._draw_text(str(key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             # Title & Subtitle (font_body prevents overlap with subtitle at top + 42)
@@ -2200,8 +2213,8 @@ class UIRenderer:
 
             # Bottom pill tag
             tag_rect = pygame.Rect(c_rect.left + 16, c_rect.bottom - 34, c_rect.width - 32, 24)
-            pygame.draw.rect(self.screen, (16, 20, 30), tag_rect, border_radius=4)
-            pygame.draw.rect(self.screen, accent_col, tag_rect, width=1, border_radius=4)
+            pygame.draw.rect(self.screen, (32, 32, 32), tag_rect, border_radius=0)
+            pygame.draw.rect(self.screen, accent_col, tag_rect, width=1, border_radius=0)
             self._draw_text(tag, self.font_small, accent_col, tag_rect.center, center=True)
 
         # Bottom Prompt
@@ -2266,15 +2279,15 @@ class UIRenderer:
         right_hdr = pygame.Rect(right_diff.left, right_diff.top, half_w, pane_hdr_h)
 
         # Left Diff Pane (Current Project Submission)
-        pygame.draw.rect(self.screen, (14, 17, 26), left_diff, border_radius=6)
-        pygame.draw.rect(self.screen, (40, 48, 68), left_diff, width=1, border_radius=6)
-        pygame.draw.rect(self.screen, (22, 27, 40), left_hdr, border_top_left_radius=6, border_top_right_radius=6)
+        pygame.draw.rect(self.screen, (24, 24, 24), left_diff, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, left_diff, width=1, border_radius=0)
+        pygame.draw.rect(self.screen, (36, 36, 36), left_hdr, border_top_left_radius=0, border_top_right_radius=0)
         self._draw_text("CURRENT PROJECT SUBMISSION: src/core/engine.py (Your Group)", self.font_small, (200, 215, 240), (left_hdr.left + 14, left_hdr.centery), midleft=True)
 
         # Right Diff Pane (Uncredited Archived Repository)
-        pygame.draw.rect(self.screen, (14, 17, 26), right_diff, border_radius=6)
-        pygame.draw.rect(self.screen, (40, 48, 68), right_diff, width=1, border_radius=6)
-        pygame.draw.rect(self.screen, (22, 27, 40), right_hdr, border_top_left_radius=6, border_top_right_radius=6)
+        pygame.draw.rect(self.screen, (24, 24, 24), right_diff, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, right_diff, width=1, border_radius=0)
+        pygame.draw.rect(self.screen, (36, 36, 36), right_hdr, border_top_left_radius=0, border_top_right_radius=0)
         self._draw_text("UNCREDITED ARCHIVED REPOSITORY: repo_2022_grad/core.py (Senior Alumni)", self.font_small, COLOR_TIMER_AMBER, (right_hdr.left + 14, right_hdr.centery), midleft=True)
 
         # Code lines to render
@@ -2310,9 +2323,9 @@ class UIRenderer:
             if is_match:
                 match_rect = pygame.Rect(left_diff.left + 4, ly - 2, half_w - 8, line_h - 2)
                 alpha_box = pygame.Surface((match_rect.width, match_rect.height), pygame.SRCALPHA)
-                pygame.draw.rect(alpha_box, (255, 190, 0, 50), (0, 0, match_rect.width, match_rect.height), border_radius=3)
+                pygame.draw.rect(alpha_box, (255, 190, 0, 50), (0, 0, match_rect.width, match_rect.height), border_radius=0)
                 self.screen.blit(alpha_box, match_rect.topleft)
-                pygame.draw.rect(self.screen, (180, 130, 0), match_rect, width=1, border_radius=3)
+                pygame.draw.rect(self.screen, (180, 130, 0), match_rect, width=1, border_radius=0)
                 pygame.draw.line(self.screen, (255, 179, 0), (match_rect.left, match_rect.top), (match_rect.left, match_rect.bottom), 3)
 
             self._draw_text(num, self.font_mono_small, (100, 115, 140), (left_diff.left + 14, ly + 4))
@@ -2326,9 +2339,9 @@ class UIRenderer:
             if is_match:
                 match_rect = pygame.Rect(right_diff.left + 4, ly - 2, half_w - 8, line_h - 2)
                 alpha_box = pygame.Surface((match_rect.width, match_rect.height), pygame.SRCALPHA)
-                pygame.draw.rect(alpha_box, (255, 190, 0, 50), (0, 0, match_rect.width, match_rect.height), border_radius=3)
+                pygame.draw.rect(alpha_box, (255, 190, 0, 50), (0, 0, match_rect.width, match_rect.height), border_radius=0)
                 self.screen.blit(alpha_box, match_rect.topleft)
-                pygame.draw.rect(self.screen, (180, 130, 0), match_rect, width=1, border_radius=3)
+                pygame.draw.rect(self.screen, (180, 130, 0), match_rect, width=1, border_radius=0)
                 pygame.draw.line(self.screen, (255, 179, 0), (match_rect.left, match_rect.top), (match_rect.left, match_rect.bottom), 3)
 
             self._draw_text(num, self.font_mono_small, (100, 115, 140), (right_diff.left + 14, ly + 4))
@@ -2375,13 +2388,13 @@ class UIRenderer:
             c_rect = pygame.Rect(cx, cards_y, card_w, card_h)
 
             is_sel = (selected_index == i)
-            border_col = accent_col if is_sel else ((60, 70, 95) if selected_index is not None else (40, 48, 68))
+            border_col = accent_col if is_sel else (COLOR_HAIRLINE if selected_index is not None else COLOR_HAIRLINE)
             card_bg = bg_col if is_sel else COLOR_CARD_BG
             self._draw_card(c_rect, border_color=border_col, bg_color=card_bg)
 
             # Key Badge
             k_badge = pygame.Rect(c_rect.left + 14, c_rect.top + 14, 32, 32)
-            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=6)
+            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=0)
             self._draw_text(str(key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             self._draw_text(title, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 12, c_rect.top + 12))
@@ -2393,8 +2406,8 @@ class UIRenderer:
 
             # Tag pill
             tag_rect = pygame.Rect(c_rect.left + 14, c_rect.bottom - 30, c_rect.width - 28, 22)
-            pygame.draw.rect(self.screen, (16, 20, 30), tag_rect, border_radius=4)
-            pygame.draw.rect(self.screen, accent_col, tag_rect, width=1, border_radius=4)
+            pygame.draw.rect(self.screen, (32, 32, 32), tag_rect, border_radius=0)
+            pygame.draw.rect(self.screen, accent_col, tag_rect, width=1, border_radius=0)
             self._draw_text(tag, self.font_small, accent_col, tag_rect.center, center=True)
 
         # Bottom Prompt
@@ -2433,7 +2446,7 @@ class UIRenderer:
         # 1. Top Navigation Telemetry Bar
         hdr_w = self.width - 240
         hdr_rect = pygame.Rect(50 + ox, 90 + oy, hdr_w, 56)
-        self._draw_card(hdr_rect, border_color=(45, 55, 78), bg_color=(18, 22, 34))
+        self._draw_card(hdr_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
 
         if selected_index is None:
             self._draw_text(
@@ -2649,12 +2662,12 @@ class UIRenderer:
 
         # Option 1: Established Track
         r1 = pygame.Rect(cx - card_w - 15, card_y, card_w, card_h)
-        b1_col = COLOR_TIMER_GREEN if selected_index == 0 else (COLOR_ACCENT_CYAN if selected_index is None else (45, 55, 75))
+        b1_col = COLOR_TIMER_GREEN if selected_index == 0 else (COLOR_ACCENT_CYAN if selected_index is None else COLOR_HAIRLINE)
         bg1_col = (20, 38, 45) if selected_index == 0 else COLOR_CARD_BG
         self._draw_card(r1, border_color=b1_col, bg_color=bg1_col)
 
         k1_badge = pygame.Rect(r1.left + 16, r1.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, k1_badge, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, k1_badge, border_radius=0)
         self._draw_text("1", self.font_title, (10, 20, 30), k1_badge.center, center=True)
 
         self._draw_text(
@@ -2673,18 +2686,18 @@ class UIRenderer:
             center_v=True,
         )
         tag1 = pygame.Rect(k1_badge.right + 14, r1.bottom - 28, 270, 20)
-        pygame.draw.rect(self.screen, (16, 24, 34), tag1, border_radius=4)
-        pygame.draw.rect(self.screen, (0, 180, 210), tag1, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), tag1, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, tag1, width=1, border_radius=0)
         self._draw_text("[ PREDICTABLE // UNKNOWN HORIZON ]", self.font_mono_small, COLOR_ACCENT_CYAN, tag1.center, center=True)
 
         # Option 2: Uncharted Trajectory
         r2 = pygame.Rect(cx + 15, card_y, card_w, card_h)
-        b2_col = COLOR_TIMER_GREEN if selected_index == 1 else (COLOR_TIMER_AMBER if selected_index is None else (45, 55, 75))
+        b2_col = COLOR_TIMER_GREEN if selected_index == 1 else (COLOR_TIMER_AMBER if selected_index is None else COLOR_HAIRLINE)
         bg2_col = (42, 32, 18) if selected_index == 1 else COLOR_CARD_BG
         self._draw_card(r2, border_color=b2_col, bg_color=bg2_col)
 
         k2_badge = pygame.Rect(r2.left + 16, r2.centery - 18, 36, 36)
-        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, k2_badge, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, k2_badge, border_radius=0)
         self._draw_text("2", self.font_title, (20, 15, 10), k2_badge.center, center=True)
 
         self._draw_text(
@@ -2703,8 +2716,8 @@ class UIRenderer:
             center_v=True,
         )
         tag2 = pygame.Rect(k2_badge.right + 14, r2.bottom - 28, 270, 20)
-        pygame.draw.rect(self.screen, (30, 22, 14), tag2, border_radius=4)
-        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, tag2, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), tag2, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, tag2, width=1, border_radius=0)
         self._draw_text("[ HIGH VOLATILITY // ZERO GUARANTEE ]", self.font_mono_small, COLOR_TIMER_AMBER, tag2.center, center=True)
 
         # Bottom Prompt
@@ -2769,7 +2782,7 @@ class UIRenderer:
         card_w = 840
         card_h = 175
         notif_rect = pygame.Rect(cx - card_w // 2, 156 + oy, card_w, card_h)
-        self._draw_card(notif_rect, border_color=(60, 72, 100), bg_color=(20, 24, 38))
+        self._draw_card(notif_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
 
         # Card Header: Authority Seal + Sender
         seal_cx = notif_rect.left + 36
@@ -2799,7 +2812,7 @@ class UIRenderer:
         self._draw_text("Now • Priority Tier 1", self.font_small, COLOR_TIMER_AMBER, (notif_rect.right - 20, notif_rect.top + 26), midright=True)
 
         # Divider
-        pygame.draw.line(self.screen, (38, 46, 68), (notif_rect.left + 20, notif_rect.top + 68), (notif_rect.right - 20, notif_rect.top + 68), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (notif_rect.left + 20, notif_rect.top + 68), (notif_rect.right - 20, notif_rect.top + 68), 1)
 
         # Content Message with prominent highlighted "? atypical ?"
         msg_y = notif_rect.top + 84
@@ -2815,16 +2828,16 @@ class UIRenderer:
 
         # Cyan highlighted box for "? atypical ?"
         pill_rect = pygame.Rect(start_text_x + pref_w, msg_y - 2, atyp_w + 16, 36)
-        pygame.draw.rect(self.screen, (10, 44, 58), pill_rect, border_radius=6)
-        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, pill_rect, width=2, border_radius=6)
+        pygame.draw.rect(self.screen, (28, 28, 28), pill_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, pill_rect, width=1, border_radius=0)
         self._draw_text(atypical_str, self.font_title, COLOR_ACCENT_CYAN, pill_rect.center, center=True)
 
         self._draw_text(suffix, self.font_body, (220, 228, 242), (pill_rect.right + 8, msg_y + 4))
 
         # Ambiguity Subtext Pill
         amb_tag = pygame.Rect(notif_rect.left + 24, notif_rect.bottom - 36, notif_rect.width - 48, 24)
-        pygame.draw.rect(self.screen, (28, 20, 16), amb_tag, border_radius=4)
-        pygame.draw.rect(self.screen, (180, 120, 20), amb_tag, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), amb_tag, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, amb_tag, width=1, border_radius=0)
         self._draw_text(
             "[ EVALUATOR INTENT UNRESOLVED: COMMENDATION VS. CRITIQUE FULLY INDETERMINATE ]",
             self.font_mono_small,
@@ -2878,13 +2891,13 @@ class UIRenderer:
             d_rect = pygame.Rect(cx - card_w // 2, dy, card_w, d_card_h)
 
             is_sel = (selected_index == i)
-            b_col = accent_col if is_sel else ((60, 70, 95) if selected_index is not None else (40, 48, 68))
+            b_col = accent_col if is_sel else (COLOR_HAIRLINE if selected_index is not None else COLOR_HAIRLINE)
             card_bg = bg_col if is_sel else COLOR_CARD_BG
             self._draw_card(d_rect, border_color=b_col, bg_color=card_bg)
 
             # Key Badge
             k_badge = pygame.Rect(d_rect.left + 14, d_rect.top + 14, 30, 30)
-            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=6)
+            pygame.draw.rect(self.screen, accent_col, k_badge, border_radius=0)
             self._draw_text(str(key), self.font_title, COLOR_TEXT_PRIMARY, k_badge.center, center=True)
 
             self._draw_text(label, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 14, d_rect.top + 10))
@@ -2893,8 +2906,8 @@ class UIRenderer:
 
             # Bottom tag
             t_rect = pygame.Rect(k_badge.right + 14, d_rect.bottom - 24, 420, 18)
-            pygame.draw.rect(self.screen, (16, 20, 30), t_rect, border_radius=3)
-            pygame.draw.rect(self.screen, accent_col, t_rect, width=1, border_radius=3)
+            pygame.draw.rect(self.screen, (32, 32, 32), t_rect, border_radius=0)
+            pygame.draw.rect(self.screen, accent_col, t_rect, width=1, border_radius=0)
             self._draw_text(tag, self.font_mono_small, accent_col, t_rect.center, center=True)
 
             if is_sel:
@@ -2925,9 +2938,9 @@ class UIRenderer:
         # 1. Question Projection (Wall Projection above Evaluators)
         # -----------------------------------------------------------------
         proj_rect = pygame.Rect(70 + jx, 95 + jy, self.width - 140, 68)
-        pygame.draw.rect(self.screen, (16, 20, 32), proj_rect, border_radius=6)
+        pygame.draw.rect(self.screen, (32, 32, 32), proj_rect, border_radius=0)
         border_col = (70, 95, 140) if not is_drone_active else (180, 75, 75)
-        pygame.draw.rect(self.screen, border_col, proj_rect, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, border_col, proj_rect, width=1, border_radius=0)
 
         # Subtle projector scanlines
         for ly in range(proj_rect.top + 12, proj_rect.bottom - 8, 14):
@@ -2964,8 +2977,8 @@ class UIRenderer:
         # 2. Panel Bench & 3 Expert Evaluators (Grayscale TSST Silhouettes)
         # -----------------------------------------------------------------
         dais_rect = pygame.Rect(120 + jx, 172 + jy, self.width - 240, 108)
-        pygame.draw.rect(self.screen, (20, 22, 30), dais_rect, border_radius=4)
-        pygame.draw.rect(self.screen, (38, 42, 56), dais_rect, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (28, 28, 28), dais_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, dais_rect, width=1, border_radius=0)
 
         # 3 Evaluators seated behind the bench (completely still & unresponsive)
         eval_xs = [320 + jx, 640 + jx, 960 + jx]
@@ -3008,8 +3021,8 @@ class UIRenderer:
         # Imposing Evaluation Bench (Wood / Slate surface)
         bench_top_y = 244 + jy
         bench_rect = pygame.Rect(120 + jx, bench_top_y, self.width - 240, 36)
-        pygame.draw.rect(self.screen, (34, 30, 40), bench_rect, border_radius=3)
-        pygame.draw.rect(self.screen, (60, 56, 72), bench_rect, width=1, border_radius=3)
+        pygame.draw.rect(self.screen, (32, 32, 32), bench_rect, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, bench_rect, width=1, border_radius=0)
         pygame.draw.line(self.screen, (90, 84, 105), (bench_rect.left, bench_top_y + 1), (bench_rect.right, bench_top_y + 1), 2)
 
         # Nameplates & dossiers on bench
@@ -3017,8 +3030,8 @@ class UIRenderer:
             ex = eval_xs[k]
             pygame.draw.rect(self.screen, (175, 165, 140), (ex - 70, bench_top_y + 6, 20, 16), border_radius=2)
             plate_rect = pygame.Rect(ex - 42, bench_top_y + 7, 130, 20)
-            pygame.draw.rect(self.screen, (24, 22, 30), plate_rect, border_radius=2)
-            pygame.draw.rect(self.screen, (80, 75, 95), plate_rect, width=1, border_radius=2)
+            pygame.draw.rect(self.screen, (24, 24, 24), plate_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, plate_rect, width=1, border_radius=0)
             title, role = eval_roles[k]
             self._draw_text(title, self.font_small, (190, 185, 200), (plate_rect.centerx, plate_rect.centery), center=True)
 
@@ -3036,8 +3049,8 @@ class UIRenderer:
         # -----------------------------------------------------------------
         podium_y = 302 + jy
         podium_banner = pygame.Rect(70 + jx, podium_y, self.width - 140, 32)
-        pygame.draw.rect(self.screen, (22, 26, 36), podium_banner, border_radius=4)
-        pygame.draw.rect(self.screen, (45, 54, 75), podium_banner, width=1, border_radius=4)
+        pygame.draw.rect(self.screen, (32, 32, 32), podium_banner, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, podium_banner, width=1, border_radius=0)
 
         # Microphone live cue
         pygame.draw.circle(self.screen, COLOR_TIMER_GREEN, (podium_banner.left + 14, podium_banner.centery), 4)
@@ -3064,34 +3077,34 @@ class UIRenderer:
             is_sel = (selected_index == i)
 
             if is_sel:
-                bg_col = (32, 45, 70)
-                border_col = COLOR_ACCENT_CYAN
-                border_w = 2
+                bg_col = (54, 32, 32)
+                border_col = COLOR_PRIMARY_ROSSO
+                border_w = 1
             else:
-                bg_col = (20, 24, 34)
-                border_col = (45, 50, 68) if selected_index is not None else (55, 62, 85)
+                bg_col = (28, 28, 28)
+                border_col = COLOR_HAIRLINE if selected_index is not None else COLOR_HAIRLINE_SUBTLE
                 border_w = 1
 
-            pygame.draw.rect(self.screen, bg_col, rect, border_radius=6)
-            pygame.draw.rect(self.screen, border_col, rect, width=border_w, border_radius=6)
+            pygame.draw.rect(self.screen, bg_col, rect, border_radius=0)
+            pygame.draw.rect(self.screen, border_col, rect, width=border_w, border_radius=0)
 
             # Key badge [1], [2], [3]
             key_rect = pygame.Rect(rect.left + 14, rect.centery - 18, 36, 36)
-            badge_bg = COLOR_ACCENT_CYAN if is_sel else COLOR_ACCENT_INDIGO
-            pygame.draw.rect(self.screen, badge_bg, key_rect, border_radius=6)
+            badge_bg = COLOR_PRIMARY_ACTIVE if is_sel else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_bg, key_rect, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, key_rect.center, center=True)
 
             # Tactical stance tag & option text
             tag_str = stance_tags[i] if i < len(stance_tags) else ""
-            self._draw_text(tag_str, self.font_small, COLOR_ACCENT_CYAN if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
+            self._draw_text(tag_str, self.font_small, COLOR_PRIMARY_ROSSO if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
             opt_rect = pygame.Rect(key_rect.right + 14, rect.top + 31, rect.width - 210, 30)
             self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect, center_v=True)
 
             # Selected indicator tag
             if is_sel:
                 sel_badge = pygame.Rect(rect.right - 120, rect.centery - 13, 104, 26)
-                pygame.draw.rect(self.screen, (0, 180, 216), sel_badge, border_radius=4)
-                self._draw_text("SELECTED", self.font_small, (10, 20, 30), sel_badge.center, center=True)
+                pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, sel_badge, border_radius=0)
+                self._draw_text("SELECTED", self.font_small, COLOR_TEXT_PRIMARY, sel_badge.center, center=True)
 
         # -----------------------------------------------------------------
         # 4. Active Deception Composure Bar (Bottom Biofeedback Bar)
@@ -3186,8 +3199,8 @@ class UIRenderer:
         bubble_border = (195, 65, 65) if is_drone_active else (165, 75, 75)
         pygame.draw.polygon(self.screen, bubble_bg, pointer_pts)
         pygame.draw.polygon(self.screen, bubble_border, pointer_pts, width=1)
-        pygame.draw.rect(self.screen, bubble_bg, bubble_rect, border_radius=6)
-        pygame.draw.rect(self.screen, bubble_border, bubble_rect, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, bubble_bg, bubble_rect, border_radius=0)
+        pygame.draw.rect(self.screen, bubble_border, bubble_rect, width=1, border_radius=0)
 
         # Speech bubble content
         self._draw_text(
@@ -3220,7 +3233,7 @@ class UIRenderer:
         # -----------------------------------------------------------------
         row2_y = 208 + jy
         row2_bench = pygame.Rect(210 + jx, row2_y + 12, self.width - 280, 6)
-        pygame.draw.rect(self.screen, (30, 34, 46), row2_bench, border_radius=2)
+        pygame.draw.rect(self.screen, (32, 32, 32), row2_bench, border_radius=0)
         row2_xs = [245 + k * 86 + jx for k in range(11)]
         for sx in row2_xs:
             pygame.draw.polygon(
@@ -3235,7 +3248,7 @@ class UIRenderer:
         # Row 1 (Front row, closer, larger)
         row1_y = 254 + jy
         row1_bench = pygame.Rect(190 + jx, row1_y + 14, self.width - 260, 8)
-        pygame.draw.rect(self.screen, (40, 45, 60), row1_bench, border_radius=2)
+        pygame.draw.rect(self.screen, (36, 36, 36), row1_bench, border_radius=0)
         pygame.draw.line(self.screen, (60, 68, 88), (row1_bench.left, row1_y + 14), (row1_bench.right, row1_y + 14), 1)
 
         row1_xs = [230 + k * 110 + jx for k in range(9)]
@@ -3277,34 +3290,34 @@ class UIRenderer:
             is_sel = (selected_index == i)
 
             if is_sel:
-                bg_col = (32, 45, 70)
-                border_col = COLOR_ACCENT_CYAN
-                border_w = 2
+                bg_col = (54, 32, 32)
+                border_col = COLOR_PRIMARY_ROSSO
+                border_w = 1
             else:
-                bg_col = (20, 24, 34)
-                border_col = (45, 50, 68) if selected_index is not None else (55, 62, 85)
+                bg_col = (28, 28, 28)
+                border_col = COLOR_HAIRLINE if selected_index is not None else COLOR_HAIRLINE_SUBTLE
                 border_w = 1
 
-            pygame.draw.rect(self.screen, bg_col, rect, border_radius=6)
-            pygame.draw.rect(self.screen, border_col, rect, width=border_w, border_radius=6)
+            pygame.draw.rect(self.screen, bg_col, rect, border_radius=0)
+            pygame.draw.rect(self.screen, border_col, rect, width=border_w, border_radius=0)
 
             # Key badge [1], [2], [3]
             key_rect = pygame.Rect(rect.left + 14, rect.centery - 18, 36, 36)
-            badge_bg = COLOR_ACCENT_CYAN if is_sel else COLOR_ACCENT_INDIGO
-            pygame.draw.rect(self.screen, badge_bg, key_rect, border_radius=6)
+            badge_bg = COLOR_PRIMARY_ACTIVE if is_sel else COLOR_PRIMARY_ROSSO
+            pygame.draw.rect(self.screen, badge_bg, key_rect, border_radius=0)
             self._draw_text(str(opt.key), self.font_title, COLOR_TEXT_PRIMARY, key_rect.center, center=True)
 
             # Posture tag & option text
             tag_str = posture_tags[i] if i < len(posture_tags) else ""
-            self._draw_text(tag_str, self.font_small, COLOR_ACCENT_CYAN if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
+            self._draw_text(tag_str, self.font_small, COLOR_PRIMARY_ROSSO if is_sel else COLOR_TEXT_SECONDARY, (key_rect.right + 14, rect.top + 9))
             opt_rect = pygame.Rect(key_rect.right + 14, rect.top + 31, rect.width - 210, 30)
             self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, opt_rect, center_v=True)
 
             # Selected indicator tag
             if is_sel:
                 sel_badge = pygame.Rect(rect.right - 120, rect.centery - 13, 104, 26)
-                pygame.draw.rect(self.screen, (0, 180, 216), sel_badge, border_radius=4)
-                self._draw_text("SELECTED", self.font_small, (10, 20, 30), sel_badge.center, center=True)
+                pygame.draw.rect(self.screen, COLOR_PRIMARY_ROSSO, sel_badge, border_radius=0)
+                self._draw_text("SELECTED", self.font_small, COLOR_TEXT_PRIMARY, sel_badge.center, center=True)
 
         # -----------------------------------------------------------------
         # 5. Active Deception Composure Bar (Bottom Biofeedback Bar)
@@ -3336,12 +3349,12 @@ class UIRenderer:
         self._draw_card(rect)
         # Peer bar (red)
         self._draw_text("Peer Group Average:", self.font_small, COLOR_TEXT_SECONDARY, (rect.left + 10, rect.top + 8))
-        pygame.draw.rect(self.screen, (50, 50, 60), (rect.left + 170, rect.top + 10, 450, 12), border_radius=3)
-        pygame.draw.rect(self.screen, COLOR_TIMER_RED, (rect.left + 170, rect.top + 10, int(450 * peer_frac), 12), border_radius=3)
+        pygame.draw.rect(self.screen, (36, 36, 36), (rect.left + 170, rect.top + 10, 450, 12), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_RED, (rect.left + 170, rect.top + 10, int(450 * peer_frac), 12), border_radius=0)
         # User bar (cyan)
         self._draw_text("Your Progress:", self.font_small, COLOR_TEXT_SECONDARY, (rect.left + 10, rect.top + 28))
-        pygame.draw.rect(self.screen, (50, 50, 60), (rect.left + 170, rect.top + 30, 450, 12), border_radius=3)
-        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, (rect.left + 170, rect.top + 30, int(450 * user_frac), 12), border_radius=3)
+        pygame.draw.rect(self.screen, (36, 36, 36), (rect.left + 170, rect.top + 30, 450, 12), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, (rect.left + 170, rect.top + 30, int(450 * user_frac), 12), border_radius=0)
 
     def draw_instability_gauge(self, fraction: float, pos: tuple[int, int]) -> None:
         """Render system instability meter for BART and Accumulator."""
@@ -3349,9 +3362,9 @@ class UIRenderer:
         cx, cy = pos
         rect = pygame.Rect(cx - 180, cy, 360, 20)
         self._draw_text("System Instability Meter", self.font_small, COLOR_TEXT_SECONDARY, (cx, cy - 14), center=True)
-        pygame.draw.rect(self.screen, (40, 40, 55), rect, border_radius=4)
+        pygame.draw.rect(self.screen, (36, 36, 36), rect, border_radius=0)
         gauge_color = COLOR_TIMER_GREEN if frac < 0.4 else (COLOR_TIMER_AMBER if frac < 0.75 else COLOR_TIMER_RED)
-        pygame.draw.rect(self.screen, gauge_color, (rect.left, rect.top, int(rect.width * frac), rect.height), border_radius=4)
+        pygame.draw.rect(self.screen, gauge_color, (rect.left, rect.top, int(rect.width * frac), rect.height), border_radius=0)
 
     def draw_team_chat(self, pos: tuple[int, int]) -> None:
         """Render Asch conformity group display with 4 avatars for Peer Influence."""
@@ -3363,7 +3376,7 @@ class UIRenderer:
         for i, name in enumerate(avatars):
             ax = rect.left + 25 + i * 280
             ay = rect.top + 34
-            pygame.draw.circle(self.screen, COLOR_ACCENT_INDIGO, (ax + 14, ay + 14), 14)
+            pygame.draw.circle(self.screen, COLOR_PRIMARY_ROSSO, (ax + 14, ay + 14), 14)
             self._draw_text(str(i + 1), self.font_small, COLOR_TEXT_PRIMARY, (ax + 14, ay + 14), center=True)
             self._draw_text(f"{name}: Vote Option 1", self.font_small, COLOR_TEXT_PRIMARY, (ax + 35, ay + 4))
         self._draw_text("Notice: Your vote is visible to all team members.", self.font_small, COLOR_ACCENT_CYAN, (rect.left + 20, rect.bottom - 22))
@@ -3396,9 +3409,9 @@ class UIRenderer:
         panel_rect = pygame.Rect(x, y - 18, bar_w, 68)
 
         # Panel card background
-        pygame.draw.rect(self.screen, (18, 22, 32), panel_rect, border_radius=6)
+        pygame.draw.rect(self.screen, (32, 32, 32), panel_rect, border_radius=0)
         border_col = (45, 54, 75) if not is_drone_active else (140, 50, 50)
-        pygame.draw.rect(self.screen, border_col, panel_rect, width=1, border_radius=6)
+        pygame.draw.rect(self.screen, border_col, panel_rect, width=1, border_radius=0)
 
         # Header / Label
         self._draw_text("Physiological Composure Analysis: Active", self.font_small, COLOR_ACCENT_CYAN, (x + 14, panel_rect.top + 10), midleft=True)
@@ -3431,10 +3444,10 @@ class UIRenderer:
 
         # Track and Bar
         track_rect = pygame.Rect(x + 14, panel_rect.top + 26, bar_w - 28, 14)
-        pygame.draw.rect(self.screen, (32, 36, 48), track_rect, border_radius=4)
+        pygame.draw.rect(self.screen, (24, 24, 24), track_rect, border_radius=0)
         fill_w = int(track_rect.width * frac)
         if fill_w > 0:
-            pygame.draw.rect(self.screen, col, (track_rect.left, track_rect.top, fill_w, track_rect.height), border_radius=4)
+            pygame.draw.rect(self.screen, col, (track_rect.left, track_rect.top, fill_w, track_rect.height), border_radius=0)
 
         # Telemetry info line
         sub_text = "HARDWARE TELEMETRY: ESP32 / MPU-6050 RESTING TREMOR METRIC (CALIBRATED μ + 1.5σ)"
@@ -3449,14 +3462,14 @@ class UIRenderer:
         """Render modal overlay displaying the scenario briefing, question, and context."""
         # Dim background with semi-transparent overlay
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        overlay.fill((8, 12, 20, 220))
+        overlay.fill((16, 16, 16, 230))
         self.screen.blit(overlay, (0, 0))
 
         # Modal Card
         card_w = 980
         card_h = 490
         card_rect = pygame.Rect(self.width // 2 - card_w // 2, self.height // 2 - card_h // 2, card_w, card_h)
-        self._draw_card(card_rect, border_color=COLOR_ACCENT_CYAN, bg_color=(16, 20, 32))
+        self._draw_card(card_rect, border_color=COLOR_PRIMARY_ROSSO, bg_color=COLOR_BG)
 
         # Header: Domain tag + Active Hold Notice
         self._draw_text(scenario.domain_id.value.replace("_", " ").upper(), self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 40, card_rect.top + 24))
@@ -3474,7 +3487,7 @@ class UIRenderer:
         self._draw_wrapped_text(f"Paradigm: {scenario.paradigm}", self.font_small, COLOR_TEXT_SECONDARY, paradigm_rect, spacing=2)
 
         # Divider
-        pygame.draw.line(self.screen, (40, 50, 72), (card_rect.left + 35, card_rect.top + 130), (card_rect.right - 35, card_rect.top + 130), 1)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (card_rect.left + 35, card_rect.top + 130), (card_rect.right - 35, card_rect.top + 130), 1)
 
         # Question / Priming Section
         self._draw_text("SCENARIO QUESTION & BRIEFING:", self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 40, card_rect.top + 144))
@@ -3484,8 +3497,8 @@ class UIRenderer:
         # Options Summary Box (if scenario has options)
         if scenario.options and scenario.scenario_type not in (ScenarioType.MIST_ARITHMETIC,):
             opt_box = pygame.Rect(card_rect.left + 40, card_rect.top + 345, card_rect.width - 80, 80)
-            pygame.draw.rect(self.screen, (22, 26, 40), opt_box, border_radius=6)
-            pygame.draw.rect(self.screen, (45, 55, 80), opt_box, width=1, border_radius=6)
+            pygame.draw.rect(self.screen, (32, 32, 32), opt_box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, opt_box, width=1, border_radius=0)
             self._draw_text("AVAILABLE CHOICES:", self.font_mono_small, (140, 150, 175), (opt_box.left + 16, opt_box.top + 8))
             opt_summary = "     ".join(f"[{opt.key}] {opt.text}" for opt in scenario.options)
             opt_summary_rect = pygame.Rect(opt_box.left + 16, opt_box.top + 28, opt_box.width - 32, 44)
@@ -3505,17 +3518,17 @@ class UIRenderer:
             win_h = 440
             win_rect = pygame.Rect(self.width // 2 - win_w // 2, 70, win_w, win_h)
 
-            pygame.draw.rect(self.screen, (18, 20, 28), win_rect, border_radius=8)
-            pygame.draw.rect(self.screen, (48, 54, 76), win_rect, width=2, border_radius=8)
+            pygame.draw.rect(self.screen, (28, 28, 28), win_rect, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, win_rect, width=1, border_radius=0)
 
             # Title bar
             hdr_rect = pygame.Rect(win_rect.left, win_rect.top, win_w, 36)
-            pygame.draw.rect(self.screen, (26, 30, 44), hdr_rect, border_top_left_radius=8, border_top_right_radius=8)
+            pygame.draw.rect(self.screen, (26, 30, 44), hdr_rect, border_top_left_radius=0, border_top_right_radius=0)
             self._draw_text("Term_Paper_Final_Draft_v4.docx — Automated Assessment", self.font_small, COLOR_TEXT_PRIMARY, (win_rect.centerx, hdr_rect.centery), center=True)
 
             # Document sheet canvas
             canvas_rect = pygame.Rect(win_rect.left + 24, hdr_rect.bottom + 16, win_w - 48, win_h - 80)
-            pygame.draw.rect(self.screen, (240, 242, 246), canvas_rect, border_radius=4)
+            pygame.draw.rect(self.screen, (244, 244, 240), canvas_rect, border_radius=0)
 
             # Simulated text lines on canvas
             margin_x = canvas_rect.left + 45
@@ -3538,7 +3551,7 @@ class UIRenderer:
             modal_w = 640
             modal_h = 190
             modal_rect = pygame.Rect(self.width // 2 - modal_w // 2, self.height // 2 - 75, modal_w, modal_h)
-            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=(18, 22, 34))
+            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=COLOR_CARD_BG)
 
             # 4. Slow Uncalibrated Spinning Progress Ring
             ring_cx = modal_rect.left + 55
@@ -3625,7 +3638,7 @@ class UIRenderer:
             modal_w = 740
             modal_h = 220
             modal_rect = pygame.Rect(self.width // 2 - modal_w // 2, self.height // 2 - 80, modal_w, modal_h)
-            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=(16, 22, 34))
+            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=COLOR_CARD_BG)
 
             # Spinning Synthesis Arc
             ring_cx = modal_rect.left + 60
@@ -3641,8 +3654,8 @@ class UIRenderer:
 
             # Complete outcome ambiguity callout
             susp_box = pygame.Rect(modal_rect.left + 30, modal_rect.bottom - 65, modal_w - 60, 36)
-            pygame.draw.rect(self.screen, (28, 22, 16), susp_box, border_radius=6)
-            pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, susp_box, width=1, border_radius=6)
+            pygame.draw.rect(self.screen, (32, 32, 32), susp_box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, susp_box, width=1, border_radius=0)
             self._draw_text("[ COMPLETE OUTCOME AMBIGUITY MAINTAINED: ZERO FEEDBACK GRANTED ]", self.font_small, COLOR_TIMER_AMBER, susp_box.center, center=True)
 
             self._draw_text("Please remain still during trajectory synthesis.", self.font_small, (130, 140, 165), (self.width // 2, self.height - 35), center=True)
@@ -3668,7 +3681,7 @@ class UIRenderer:
             modal_w = 740
             modal_h = 220
             modal_rect = pygame.Rect(cx - modal_w // 2, self.height // 2 - 50, modal_w, modal_h)
-            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=(18, 24, 36))
+            self._draw_card(modal_rect, border_color=COLOR_ACCENT_CYAN, bg_color=COLOR_CARD_BG)
 
             # Progress Ring (10s progress ring)
             ring_cx = modal_rect.left + 60
@@ -3684,8 +3697,8 @@ class UIRenderer:
 
             # Outcome embargo callout (no feedback revealed)
             emb_box = pygame.Rect(modal_rect.left + 30, modal_rect.bottom - 65, modal_w - 60, 36)
-            pygame.draw.rect(self.screen, (28, 20, 16), emb_box, border_radius=6)
-            pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, emb_box, width=1, border_radius=6)
+            pygame.draw.rect(self.screen, (32, 32, 32), emb_box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, emb_box, width=1, border_radius=0)
             self._draw_text("[ NO FEEDBACK REVEALED: ASSESSMENT PARAMETERS UNDER EMBARGO ]", self.font_small, COLOR_TIMER_AMBER, emb_box.center, center=True)
 
             self._draw_text("Please remain still during parameter recalculation.", self.font_small, (130, 140, 165), (self.width // 2, self.height - 35), center=True)
@@ -3693,7 +3706,7 @@ class UIRenderer:
 
         # Default fallback delay wait screen
         card_rect = pygame.Rect(self.width // 2 - 300, self.height // 2 - 120, 600, 240)
-        self._draw_card(card_rect, COLOR_ACCENT_INDIGO)
+        self._draw_card(card_rect, COLOR_PRIMARY_ROSSO)
 
         # Spinning arc indicator
         angle = (elapsed_fraction * 720) % 360
@@ -3708,17 +3721,17 @@ class UIRenderer:
         """Render scenario consequence narrative feedback."""
         self.screen.fill(COLOR_BG)
         card_rect = pygame.Rect(self.width // 2 - 460, self.height // 2 - 165, 920, 330)
-        self._draw_card(card_rect, COLOR_ACCENT_INDIGO)
+        self._draw_card(card_rect, COLOR_PRIMARY_ROSSO)
 
-        self._draw_text("CONSEQUENCE RECORDED", self.font_small, COLOR_ACCENT_CYAN, (self.width // 2, card_rect.top + 32), center=True)
+        self._draw_text("CONSEQUENCE RECORDED", self.font_small, COLOR_PRIMARY_ROSSO, (self.width // 2, card_rect.top + 32), center=True)
         text_rect = pygame.Rect(card_rect.left + 50, card_rect.top + 70, card_rect.width - 100, 165)
         self._draw_wrapped_text(consequence_text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=6)
 
         # Display account suspension warning badge if burst occurred
         if "suspended" in consequence_text.lower() or "failure" in consequence_text.lower():
             warn_badge = pygame.Rect(card_rect.left + 50, card_rect.bottom - 50, card_rect.width - 100, 34)
-            pygame.draw.rect(self.screen, (48, 14, 20), warn_badge, border_radius=6)
-            pygame.draw.rect(self.screen, COLOR_TIMER_RED, warn_badge, width=1, border_radius=6)
+            pygame.draw.rect(self.screen, (48, 14, 20), warn_badge, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_RED, warn_badge, width=1, border_radius=0)
             self._draw_text("ACCOUNT SUSPENDED — REACH RESET TO ZERO", self.font_small, COLOR_TIMER_RED, warn_badge.center, center=True)
 
         # Disperse shatter particles if active or if consequence was collapse
@@ -3748,10 +3761,10 @@ class UIRenderer:
         """Render final session completion debrief screen."""
         self.screen.fill(COLOR_BG)
         card_rect = pygame.Rect(self.width // 2 - 350, self.height // 2 - 160, 700, 320)
-        self._draw_card(card_rect, COLOR_ACCENT_CYAN)
+        self._draw_card(card_rect, COLOR_PRIMARY_ROSSO)
 
         self._draw_text("SESSION COMPLETE", self.font_hero, COLOR_TEXT_PRIMARY, (self.width // 2, card_rect.top + 45), center=True)
-        self._draw_text("Thank you for your participation.", self.font_title, COLOR_ACCENT_CYAN, (self.width // 2, card_rect.top + 105), center=True)
+        self._draw_text("Thank you for your participation.", self.font_title, COLOR_PRIMARY_ROSSO, (self.width // 2, card_rect.top + 105), center=True)
 
         mins = int(total_duration_s // 60)
         secs = int(total_duration_s % 60)
