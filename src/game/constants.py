@@ -41,6 +41,9 @@ class EventType(StrEnum):
     REST_END = "REST_END"
     SESSION_END = "SESSION_END"
     DECEPTION_TRIGGER = "DECEPTION_TRIGGER"
+    FOCUS_LOST = "FOCUS_LOST"
+    FOCUS_GAINED = "FOCUS_GAINED"
+    CLOCK_ANOMALY = "CLOCK_ANOMALY"
 
 
 class ScenarioType(StrEnum):
@@ -64,9 +67,9 @@ FPS: int = 60
 BASELINE_DURATION_S: int = 180
 FAST_BASELINE_DURATION_S: int = 10
 INTRA_DOMAIN_REST_S: int = 15
-INTER_DOMAIN_REST_S: int = 60
+INTER_DOMAIN_REST_S: int = 30
 DEFAULT_CONSEQUENCE_DURATION_S: int = 4
-DEFAULT_PRIMING_DURATION_S: int = 8
+DEFAULT_PRIMING_DURATION_S: int = 20
 
 # --- Audio ---
 DRONE_VOLUME: float = 0.30
@@ -82,13 +85,25 @@ TIMER_BAR_AMBER_FRACTION: float = 0.333
 TIMER_BAR_RED_FRACTION: float = 0.10
 VIBRATION_MAX_PX: int = 3
 
-# --- Deception Metric ---
+# --- Deception Metric & Composure Gating ---
 DECEPTION_THRESHOLD_SIGMA: float = 1.5
 COMPOSURE_BAR_UPDATE_HZ: float = 4.0
+COMPOSURE_DROP_CONSECUTIVE_SAMPLES: int = 3
+COMPOSURE_DROP_COOLDOWN_S: float = 5.0
+
+# --- Skin-Specific Visual Effects (Safety Limits) ---
+BRIGHTNESS_FLICKER_MAX_PCT: float = 5.0
+BRIGHTNESS_FLICKER_MAX_HZ: float = 2.0
+NOTIFICATION_PULSE_HZ: float = 1.0
+COMPASS_SPIN_MAX_RPM: float = 4.0
+PENDULUM_SWING_MAX_HZ: float = 1.0
+
+# --- Clock Monitoring ---
+CLOCK_JUMP_WARNING_THRESHOLD_MS: int = 50
 
 # --- MIST ---
 MIST_PEER_ADVANTAGE_PCT: int = 15
-MIST_WRONG_FLASH_COLOR: tuple[int, int, int] = (220, 50, 50)
+MIST_WRONG_FLASH_COLOR: tuple[int, int, int] = (218, 41, 28)  # Rosso Corsa
 MIST_PROBLEM_COUNT: int = 4
 
 # --- BART ---
@@ -104,18 +119,24 @@ REWARD_GROWTH_RATE: float = 1.15
 REWARD_COLLAPSE_RANGE: tuple[int, int] = (20, 40)
 REWARD_MAX_DISPLAY: int = 9999
 
-# --- Colors (RGB) ---
-COLOR_BG: tuple[int, int, int] = (18, 18, 24)
-COLOR_CARD_BG: tuple[int, int, int] = (30, 30, 42)
-COLOR_TEXT_PRIMARY: tuple[int, int, int] = (230, 230, 240)
-COLOR_TEXT_SECONDARY: tuple[int, int, int] = (160, 160, 180)
-COLOR_ACCENT_INDIGO: tuple[int, int, int] = (99, 102, 241)
-COLOR_ACCENT_CYAN: tuple[int, int, int] = (34, 211, 238)
-COLOR_TIMER_GREEN: tuple[int, int, int] = (34, 197, 94)
-COLOR_TIMER_AMBER: tuple[int, int, int] = (245, 158, 11)
-COLOR_TIMER_RED: tuple[int, int, int] = (239, 68, 68)
-COLOR_REST_GRADIENT_TOP: tuple[int, int, int] = (15, 23, 42)
-COLOR_REST_GRADIENT_BOTTOM: tuple[int, int, int] = (30, 41, 59)
+# --- Colors (RGB) --- Ferrari Luxury-Automotive Editorial System
+COLOR_BG: tuple[int, int, int] = (24, 24, 24)                # #181818 Near-black canvas
+COLOR_CARD_BG: tuple[int, int, int] = (48, 48, 48)           # #303030 Canvas elevated / surface-card
+COLOR_TEXT_PRIMARY: tuple[int, int, int] = (255, 255, 255)   # #ffffff Ink / Display
+COLOR_TEXT_SECONDARY: tuple[int, int, int] = (150, 150, 150) # #969696 Body
+COLOR_TEXT_MUTED: tuple[int, int, int] = (102, 102, 102)     # #666666 Muted caption
+COLOR_PRIMARY_ROSSO: tuple[int, int, int] = (218, 41, 28)    # #da291c Rosso Corsa
+COLOR_PRIMARY_ACTIVE: tuple[int, int, int] = (176, 30, 10)   # #b01e0a Rosso Corsa active
+COLOR_ACCENT_CYAN: tuple[int, int, int] = (76, 152, 185)     # #4c98b9 Semantic info telemetry
+COLOR_ACCENT_YELLOW: tuple[int, int, int] = (246, 229, 0)    # #f6e500 Ferrari yellow accent
+COLOR_TIMER_GREEN: tuple[int, int, int] = (3, 144, 74)       # #03904a Semantic success
+COLOR_TIMER_AMBER: tuple[int, int, int] = (246, 229, 0)      # #f6e500 Semantic warning / yellow
+COLOR_TIMER_RED: tuple[int, int, int] = (218, 41, 28)        # #da291c Rosso Corsa / critical
+COLOR_REST_GRADIENT_TOP: tuple[int, int, int] = (24, 24, 24)
+COLOR_REST_GRADIENT_BOTTOM: tuple[int, int, int] = (14, 14, 14)
+COLOR_HAIRLINE: tuple[int, int, int] = (48, 48, 48)          # #303030 Hairline divider
+COLOR_HAIRLINE_SUBTLE: tuple[int, int, int] = (58, 58, 58)   # Subtle contrast divider
+COLOR_ACCENT_INDIGO: tuple[int, int, int] = (218, 41, 28)    # Alias to Rosso Corsa for backwards compatibility
 
 # --- Subject ID Validation ---
 SUBJECT_ID_PATTERN: str = r"^S\d{2,3}$"

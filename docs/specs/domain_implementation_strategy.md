@@ -37,10 +37,13 @@ Combines **cognitive overload** with **social-evaluative threat** — the partic
 **Paradigm basis:** MIST arithmetic stress (Dedovic et al., 2005)
 
 **Priming (8s):**
-> *"Your semester GPA hinges on this assessment. You have 40 seconds. The system will compare your results against other participants."*
+> *"Your semester final grade / GPA hinges on this assessment. You have 40 seconds. The system will compare your results against other participants."*
+
+*Note on Adaptive Difficulty Calibration (Dedovic et al., 2005):* Immediately before the countdown begins, participants complete 3 untimed practice problems (`calibrate_mist_difficulty()`) to establish starting tier (`easy`, `medium`, or `hard`), ensuring the session targets the validated ~45–50% error rate across varying arithmetic skills.
 
 **Decision phase (40s):**
 A rapid-fire sequence of **4 arithmetic problems** presented one at a time. Each problem has 4 answer options (keys `1`, `2`, `3`, `4`). A visible countdown timer ticks down for the entire sequence. After each answer (right or wrong), the next problem appears immediately.
+*(Note: Per C1 architectural contract, the DECISION state holds for the full 40s to guarantee the required 60s active epoch for ML classification).*
 
 **Stress mechanics:**
 - A fake **"Peer Average" progress bar** sits at the top of the screen, always slightly ahead of the participant's position — creating the impression of underperformance (MIST's core manipulation).
@@ -365,7 +368,7 @@ Two paths are described with deliberately **incomplete information**:
 The missing information (`[DATA UNAVAILABLE]`, `[UNDER REVIEW]`) is the core manipulation — it prevents the participant from making a fully informed decision, triggering intolerance of uncertainty. "Track" is intentionally ambiguous — an academic stream for younger participants, a course or program for older ones.
 
 **Post-decision waiting phase (12s):**
-After selecting, a *"Processing your selection..."* screen appears with a slowly spinning indicator. **No information is revealed during this wait.** This 12-second window is the primary HRV measurement period — sustained anticipatory anxiety.
+After selecting, a *"Processing your selection..."* screen appears with a slowly spinning indicator. **No information is revealed during this wait.** This 12-second window sustains the uncertainty manipulation through the domain-active span; HRV features are extracted over the full ~65s continuous active epoch (priming + decision + post-wait + feedback), satisfying the ML pipeline's 60s sliding window requirement (see `PULSE_Gamification_Interface_Spec.md` §5).
 
 **Consequence (4s):**
 > *"Your selection has been recorded. Outcome details will be provided at the end of the evaluation."*
@@ -425,9 +428,9 @@ The strongest known laboratory stressor. Combines **social-evaluative threat** (
 **Paradigm basis:** TSST speech task (Kirschbaum et al., 1993) + biofeedback amplification (Wieser et al., 2010)
 
 **Priming (10s):**
-> *"You are presenting your project findings to an expert evaluation panel. The panel's assessment will determine your project grade. The system is monitoring your physiological composure in real-time."*
+> *"You are presenting your project findings to an expert evaluation panel. The panel's assessment will determine your project grade. A biometric sensor is tracking your composure for the panel's review."*
 
-The final sentence primes the participant for the biofeedback mechanic — they know they're being watched.
+The final sentence primes the participant for the biofeedback mechanic — they know their physical tremor is being evaluated.
 
 **Decision phase (45s):**
 The screen shows a simulated panel of **3 evaluator portraits** with neutral, expressionless faces (TSST validated — neutral is more stressful than hostile). A challenging question about defending a controversial position is presented:
@@ -439,7 +442,7 @@ The screen shows a simulated panel of **3 evaluator portraits** with neutral, ex
 - **Option 3 (Key 3):** Challenge the reviewer's qualifications
 
 **Stress mechanics (unique to this domain):**
-- **MPU6050 Deception Metric ACTIVE:** An "Algorithm Confidence" bar is visible at the bottom of the screen. If the participant's hand tremor (Z-axis variance from the accelerometer) exceeds their personal baseline threshold (μ + 1.5σ), the bar visibly drops. A small text label reads: *"Composure Analysis: Active"*
+- **MPU6050 Deception Metric ACTIVE:** An "Algorithm Confidence" bar is visible at the bottom of the screen. If the participant's hand tremor (3-axis variance from accelerometer magnitude) exceeds their personal baseline threshold (μ + 1.5σ) for ≥3 consecutive samples (~0.75s) outside the 5s cooldown, the bar visibly drops. A small text label reads: *"Composure Analysis: Active"*
 - The evaluator portraits remain **completely neutral** — no nodding, no frowning. This unresponsiveness is the TSST's uncontrollability mechanism.
 - Subtle text jitter on the question text (≤3px, ≤2Hz) represents the panel's "impatience."
 - Diegetic tension drone activates in the final third.
@@ -454,11 +457,11 @@ The screen shows a simulated panel of **3 evaluator portraits** with neutral, ex
 **Paradigm basis:** Evaluative observation + negative feedback (Geen, 1991; MAST social-evaluative component, Smeets et al., 2012)
 
 **Priming (10s):**
-> *"Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. The system is monitoring your composure in real-time."*
+> *"Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. A biometric sensor is tracking your composure for review."*
 
 Again, the final sentence primes the biofeedback mechanic.
 
-**Decision phase (40s):**
+**Decision phase (46s):** *(Note: Calibrated to 46s so that 10s priming + 46s decision + 4s consequence = 60s minimum active epoch).*
 The screen displays a harsh, borderline-unfair critique:
 
 > *"Your teacher states: 'Your recent performance has been below the standard expected in this program. I need to understand whether this is a capability issue or a commitment issue. Explain yourself.'"*

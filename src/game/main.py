@@ -35,8 +35,9 @@ def parse_args() -> SessionConfig:
     )
     parser.add_argument(
         "--fullscreen",
-        action="store_true",
-        help="Launch in borderless fullscreen mode",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Launch in fullscreen mode (use --no-fullscreen for windowed mode)",
     )
     parser.add_argument(
         "--window-size",
@@ -84,7 +85,7 @@ def main() -> None:
 
     pygame.init()
     if config.fullscreen:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
     else:
         screen = pygame.display.set_mode(config.window_size)
 

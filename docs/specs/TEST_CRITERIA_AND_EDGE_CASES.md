@@ -232,7 +232,10 @@ def sample_event():
 | Deception metric only in social_evaluation | Verify `composure_fraction` is None for non-social_evaluation scenarios |
 | Timer expiry triggers TIMEOUT_NO_RESPONSE | Set timer to 0 → verify event logged |
 | Consequence text matches selected option | After selecting option 1 → feedback text == option.consequence_text |
-| Post-wait only for future_uncertainty | Verify STATE_POST_WAIT entered only when `has_post_wait=True` |
+| Decision state holds full duration after keypress (C1) | When option selected at frame 1, state remains DECISION until timer reaches 0 |
+| Same-frame keypress wins over timeout (M2) | Valid KEYDOWN in same frame timer reaches 0 logs OPTION_SELECTED, never TIMEOUT_NO_RESPONSE |
+| Focus loss freezes timers and audio (M3) | WINDOWFOCUSLOST pauses timer and drone; WINDOWFOCUSGAINED resumes |
+| Post-wait only for future_uncertainty / delay_wait | Verify STATE_POST_WAIT entered when post-wait condition active |
 | Intra-rest after Scenario A | Verify 15s timer after first scenario |
 | Inter-rest after Scenario B | Verify 60s timer after second scenario |
 | Debrief after all domains | After 7th domain → STATE_DEBRIEF |
@@ -379,8 +382,10 @@ These assertions MUST pass for any implementation to be considered complete. The
 □ 7 domains × 2 scenarios = 14 scenarios in registry
 □ All 14 scenario IDs are unique
 □ social_evaluation is the ONLY domain with has_deception_metric=True
-□ future_uncertainty is the ONLY domain with has_post_wait=True
+□ future_uncertainty scenarios have has_post_wait=True; impulsivity_gratification_b conditionally activates DELAY_WAIT
+□ STATE_DECISION holds for full duration even when option selected early (C1)
 □ MIST peer average is ALWAYS accuracy + 15
+□ MIST starting difficulty is calibrated via pretest (C4)
 □ BART burst probability increases monotonically with pumps
 □ Reward accumulator collapse point is within (20, 40) seconds
 □ Timer bar color transitions at correct fractions
@@ -403,6 +408,7 @@ These assertions MUST pass for any implementation to be considered complete. The
 □ No mouse event handling code exists in any file
 □ No numerical score displayed in any UI text
 □ No strobing effect >3 Hz exists in any effect code
+□ No skin-specific visual effect (brightness flicker, pulse, spin, swing) exceeds 3 Hz safety limit
 □ No full-screen color inversion exists in any rendering code
 □ Drone volume ≤ 0.30
 □ Jitter amplitude constant ≤ 3

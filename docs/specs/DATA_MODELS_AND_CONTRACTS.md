@@ -43,6 +43,9 @@ class EventType(StrEnum):
     REST_END           = "REST_END"
     SESSION_END        = "SESSION_END"
     DECEPTION_TRIGGER  = "DECEPTION_TRIGGER"
+    FOCUS_LOST         = "FOCUS_LOST"
+    FOCUS_GAINED       = "FOCUS_GAINED"
+    CLOCK_ANOMALY      = "CLOCK_ANOMALY"
 
 class ScenarioType(StrEnum):
     STANDARD_MCQ       = "STANDARD_MCQ"
@@ -286,6 +289,11 @@ def generate_math_problems(count: int = 4, difficulty: str = "medium") -> list[M
     difficulty: 'easy' (2-digit), 'medium' (3-digit), 'hard' (4-digit).
     Returns list of MathProblem with 4 options each, one correct.
     """
+
+def calibrate_mist_difficulty(pretest_correct: int, pretest_total: int = 3) -> str:
+    """Calibrate starting difficulty tier for MIST arithmetic based on 3-problem pretest.
+    Returns 'hard' (>=67%), 'medium' (34-66%), or 'easy' (<=33%).
+    """
 ```
 
 ### `scenario_logic.py`
@@ -403,7 +411,7 @@ class BridgeInterface(Protocol):
         ...
 
     def get_mpu_variance(self) -> float | None:
-        """Return rolling Z-axis variance over last 1s window. None if no data."""
+        """Return rolling 1s variance of 3-axis acceleration magnitude sqrt(x^2+y^2+z^2). None if no data."""
         ...
 
 class StubBridge:
@@ -476,9 +484,21 @@ TIMER_BAR_AMBER_FRACTION: float = 0.333
 TIMER_BAR_RED_FRACTION: float = 0.10
 VIBRATION_MAX_PX: int = 3
 
-# --- Deception Metric ---
+# --- Deception Metric & Composure Gating ---
 DECEPTION_THRESHOLD_SIGMA: float = 1.5
 COMPOSURE_BAR_UPDATE_HZ: float = 4.0    # Update composure bar 4× per second, not every frame
+COMPOSURE_DROP_CONSECUTIVE_SAMPLES: int = 3   # Sustained tremor elevation (~0.75s at 4Hz)
+COMPOSURE_DROP_COOLDOWN_S: float = 5.0         # Minimum interval between composure bar drops
+
+# --- Skin-Specific Visual Effects (Safety Limits) ---
+BRIGHTNESS_FLICKER_MAX_PCT: float = 5.0
+BRIGHTNESS_FLICKER_MAX_HZ: float = 2.0        # WCAG safety cap <= 3Hz
+NOTIFICATION_PULSE_HZ: float = 1.0
+COMPASS_SPIN_MAX_RPM: float = 4.0             # Continuous slow rotation
+PENDULUM_SWING_MAX_HZ: float = 1.0
+
+# --- Clock Monitoring ---
+CLOCK_JUMP_WARNING_THRESHOLD_MS: int = 50     # Flag non-monotonic jump via CLOCK_ANOMALY
 
 # --- MIST ---
 MIST_PEER_ADVANTAGE_PCT: int = 15       # Fake peer average is always +15% higher

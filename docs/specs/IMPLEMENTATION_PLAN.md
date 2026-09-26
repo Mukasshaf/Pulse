@@ -159,8 +159,9 @@ python -c "from src.game.audio import AudioController; print('OK')"
 
 **Content:**
 - `SensorSample` dataclass
-- `BridgeInterface` Protocol
-- `StubBridge` class returning `None` for all methods (Default runtime mode since `serial_reader.py` handles hardware in a completely decoupled process)
+- `BridgeInterface` Protocol with `get_latest_sample()` and `get_mpu_variance()` (3-axis magnitude variance)
+- `StubBridge` class returning `None` for all methods (default fallback mode)
+- `SerialBridge` class for real-time MPU6050 reading via background thread on COM port for Domain 7
 
 **Verification checkpoint:**
 ```bash
@@ -294,12 +295,15 @@ print('OK')
 - `GameEngine` class implementing the full state machine
 - `run()` — main Pygame loop with `clock.tick(60)`, event dispatch, `_update()`, `_render()`
 - `_transition_to()` — validated against `VALID_TRANSITIONS`, logs transition event
-- `_handle_input()` — routes KEYDOWN to current state handler
-- `_update()` — decrements timers, triggers audio/effects, polls bridge
-- `_render()` — delegates to `UIRenderer` based on `_current_state`
+- `_handle_input()` — routes KEYDOWN to current state handler:
+  - In `STATE_DECISION`, a keypress locks in `_selected_option` and logs `OPTION_SELECTED` with `response_time_ms` immediately, but does NOT transition early (C1).
+  - Processes all pending events in the queue before `_update()` decrements timers, ensuring same-frame keypresses win over timeouts (M2).
+  - Handles `pygame.WINDOWFOCUSLOST` (logs `FOCUS_LOST`, pauses timers/audio) and `pygame.WINDOWFOCUSGAINED` (logs `FOCUS_GAINED`, resumes) (M3).
+- `_update()` — decrements timers only when window has focus; triggers state transition from `STATE_DECISION` to `FEEDBACK` or `POST_WAIT` only when decision timer reaches 0.
+- `_render()` — delegates to `UIRenderer` based on `_current_state`; displays locked-in selection highlight during remainder of decision timer.
 - Domain randomization with seed logging
 - Scenario progression tracking (current domain index, scenario A/B flag)
-- Deception metric integration (social_evaluation only, reads `bridge.get_mpu_variance()`)
+- Deception metric integration (social_evaluation only, reads `bridge.get_mpu_variance()` with 3-sample consecutive elevation + 5s cooldown gating)
 
 **Verification checkpoint:**
 ```bash

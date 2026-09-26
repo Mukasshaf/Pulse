@@ -103,3 +103,29 @@ def test_scenario_titles_and_durations(domain_registry: list[Domain]) -> None:
     for s_id, expected_title in expected_titles.items():
         assert s_id in scenarios_by_id
         assert scenarios_by_id[s_id].title == expected_title
+
+
+def test_scenario_skins(domain_registry: list[Domain]) -> None:
+    """Verify all 14 scenarios have their canonical simulation skin assigned."""
+    expected_skins = {
+        "academic_pressure_a": "exam_hall",
+        "academic_pressure_b": "misconduct_hearing",
+        "peer_influence_a": "group_chat",
+        "peer_influence_b": "team_kanban",
+        "impulsivity_gratification_a": "reward_crate",
+        "impulsivity_gratification_b": "document_workspace",
+        "risk_reward_a": "tournament_bracket",
+        "risk_reward_b": "social_analytics",
+        "rule_ambiguity_a": "portal_log",
+        "rule_ambiguity_b": "code_diff",
+        "future_uncertainty_a": "fork_map",
+        "future_uncertainty_b": "notification_stack",
+        "social_evaluation_a": "defense_stage",
+        "social_evaluation_b": "classroom_critique",
+    }
+    scenarios_by_id = {s.id: s for d in domain_registry for s in d.scenarios}
+    assert len(scenarios_by_id) == 14
+    for scenario_id, expected_skin in expected_skins.items():
+        assert scenario_id in scenarios_by_id
+        assert scenarios_by_id[scenario_id].skin == expected_skin
+

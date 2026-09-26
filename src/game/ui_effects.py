@@ -4,8 +4,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import pygame
+
 from src.game.constants import (
     BUTTON_FLASH_DURATION_MS,
+    COLOR_ACCENT_CYAN,
     COLOR_TIMER_AMBER,
     COLOR_TIMER_GREEN,
     COLOR_TIMER_RED,
@@ -114,3 +117,91 @@ class ButtonFlash:
     def is_flashing(self) -> bool:
         """Return True while flash timer is non-zero."""
         return self._timer_ms > 0
+
+
+@dataclass
+class ShatterParticle:
+    """Individual rectangular fragment in a radial shatter dispersal."""
+
+    x: float
+    y: float
+    vx: float
+    vy: float
+    width: int
+    height: int
+    color: tuple[int, int, int]
+    life_ms: int = 600
+    elapsed_ms: int = 0
+
+
+class RadialShatterEffect:
+    """Computes and renders a 12-particle radial rectangular shatter dispersal on chest collapse."""
+
+    def __init__(self, num_particles: int = 12, duration_ms: int = 600) -> None:
+        """Initialize shatter effect parameters."""
+        self.num_particles: int = num_particles
+        self.duration_ms: int = duration_ms
+        self.particles: list[ShatterParticle] = []
+        self.is_active: bool = False
+
+    def trigger(self, center: tuple[int, int], base_speed: float = 220.0) -> None:
+        """Initialize radial burst of rectangular particles from the given center."""
+        cx, cy = center
+        self.particles = []
+        self.is_active = True
+        colors = [
+            COLOR_ACCENT_CYAN,
+            COLOR_TIMER_AMBER,
+            (255, 130, 80),
+            (70, 75, 95),
+            (220, 230, 255),
+            COLOR_TIMER_RED,
+        ]
+        for i in range(self.num_particles):
+            angle = (2.0 * math.pi * i) / float(self.num_particles)
+            speed = base_speed * (0.85 + (i % 3) * 0.15)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            col = colors[i % len(colors)]
+            pw = 10 + (i % 3) * 3
+            ph = 7 + ((i + 1) % 3) * 2
+            self.particles.append(
+                ShatterParticle(
+                    x=float(cx),
+                    y=float(cy),
+                    vx=vx,
+                    vy=vy,
+                    width=pw,
+                    height=ph,
+                    color=col,
+                    life_ms=self.duration_ms,
+                    elapsed_ms=0,
+                )
+            )
+
+    def update(self, dt_ms: int) -> None:
+        """Advance particle trajectories and life timers."""
+        if not self.is_active:
+            return
+        all_expired = True
+        dt_sec = dt_ms / 1000.0
+        for p in self.particles:
+            p.elapsed_ms += dt_ms
+            if p.elapsed_ms < p.life_ms:
+                all_expired = False
+                p.x += p.vx * dt_sec
+                p.y += p.vy * dt_sec
+        if all_expired:
+            self.is_active = False
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """Draw active particle rectangles with lifetime decay."""
+        if not self.is_active:
+            return
+        for p in self.particles:
+            if p.elapsed_ms < p.life_ms:
+                decay = 1.0 - (p.elapsed_ms / float(p.life_ms))
+                w = max(2, int(p.width * decay))
+                h = max(2, int(p.height * decay))
+                rect = pygame.Rect(int(p.x - w // 2), int(p.y - h // 2), w, h)
+                pygame.draw.rect(screen, p.color, rect, border_radius=1)
