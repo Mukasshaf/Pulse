@@ -17,8 +17,11 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 
+from collections.abc import Generator
+
+
 @pytest.fixture(scope="session", autouse=True)
-def init_pygame() -> None:
+def init_pygame() -> Generator[None, None, None]:
     """Initialize pygame subsystems in headless mode."""
     pygame.init()
     yield

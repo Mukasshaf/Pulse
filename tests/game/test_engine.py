@@ -205,10 +205,10 @@ def test_intra_and_inter_rest_intervals(tmp_path: Path) -> None:
     # Advance through Scenario B
     engine._transition_to(EngineState.DECISION)
     engine._transition_to(EngineState.FEEDBACK)
-    # After Scenario B feedback expires -> INTER_REST (60s)
+    # After Scenario B feedback expires -> INTER_REST (30s)
     engine._update(4500)
     assert engine._current_state == EngineState.INTER_REST
-    assert engine._state_timer_ms == 60000
+    assert engine._state_timer_ms == 30000
     engine._shutdown()
 
 
@@ -227,3 +227,111 @@ def test_debrief_after_all_domains(tmp_path: Path) -> None:
     assert engine._current_state == EngineState.DEBRIEF
     assert VALID_TRANSITIONS[engine._current_state] == set()
     engine._shutdown()
+
+
+def test_full_session_simulation_all_domains(tmp_path: Path) -> None:
+    """End-to-end simulation test executing and rendering through all 7 domains and 14 scenarios."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._render()
+
+    # Enter ID via return key (default S01 is pre-populated)
+    engine._handle_input(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN, "unicode": "\r"}))
+    assert engine._current_state == EngineState.BASELINE
+    engine._render()
+
+    # Complete baseline calibration
+    engine._update(11000)
+    assert engine._current_state == EngineState.PRIMING
+    engine._render()
+
+    # Simulate all 7 domains (14 scenarios)
+    for domain_idx in range(len(engine._domains)):
+        for scen_idx in (0, 1):
+            assert engine._current_state == EngineState.PRIMING
+            engine._render()
+            scenario = engine._get_safe_scenario()
+            assert scenario is not None
+
+            # Advance priming timer -> DECISION
+            engine._update(scenario.priming_duration_s * 1000 + 100)
+            assert engine._current_state == EngineState.DECISION
+            engine._render()
+
+            # If still in DECISION, advance remaining decision time to transition out
+            if engine._current_state == EngineState.DECISION:
+                engine._update(scenario.decision_duration_s * 1000 + 100)
+
+            # Check if post-wait
+            if scenario.has_post_wait and engine._current_state == EngineState.POST_WAIT:
+                engine._render()
+                engine._update(scenario.post_wait_duration_s * 1000 + 100)
+
+            assert engine._current_state == EngineState.FEEDBACK
+            engine._render()
+
+            # Advance feedback timer
+            engine._update(scenario.consequence_duration_s * 1000 + 100)
+
+            # Rest state
+            if scen_idx == 0:
+                assert engine._current_state == EngineState.INTRA_REST
+                engine._render()
+                engine._update(16000)
+            elif domain_idx < len(engine._domains) - 1:
+                assert engine._current_state == EngineState.INTER_REST
+                engine._render()
+                engine._update(31000)
+
+    assert engine._current_state == EngineState.DEBRIEF
+    engine._render()
+    assert engine._scenarios_completed == 14
+    engine._shutdown()
+
+
+def test_priming_early_skip_with_space(tmp_path: Path) -> None:
+    """Verify pressing SPACE or ENTER during PRIMING immediately transitions to DECISION."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._transition_to(EngineState.BASELINE)
+    engine._transition_to(EngineState.PRIMING)
+    assert engine._current_state == EngineState.PRIMING
+
+    # Pressing SPACE skips the remaining priming countdown
+    space_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
+    engine._handle_input(space_event)
+    assert engine._current_state == EngineState.DECISION
+    engine._shutdown()
+
+
+def test_question_popup_hold_and_release(tmp_path: Path) -> None:
+    """Verify holding TAB or Q activates question popup and releasing dismisses it."""
+    engine = _make_engine(tmp_path)
+    engine._transition_to(EngineState.ID_INPUT)
+    engine._transition_to(EngineState.BASELINE)
+    engine._transition_to(EngineState.PRIMING)
+    engine._transition_to(EngineState.DECISION)
+    assert engine._current_state == EngineState.DECISION
+    assert engine._is_question_popup_active is False
+
+    # Holding TAB down activates question popup
+    tab_down = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_TAB})
+    engine._handle_input(tab_down)
+    assert engine._is_question_popup_active is True
+    # Render should succeed with popup active
+    engine._render()
+
+    # Releasing TAB dismisses question popup
+    tab_up = pygame.event.Event(pygame.KEYUP, {"key": pygame.K_TAB})
+    engine._handle_input(tab_up)
+    assert engine._is_question_popup_active is False
+
+    # Q key also works similarly
+    q_down = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_q})
+    engine._handle_input(q_down)
+    assert engine._is_question_popup_active is True
+    q_up = pygame.event.Event(pygame.KEYUP, {"key": pygame.K_q})
+    engine._handle_input(q_up)
+    assert engine._is_question_popup_active is False
+    engine._shutdown()
+

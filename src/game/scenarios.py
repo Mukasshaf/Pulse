@@ -74,6 +74,7 @@ class Scenario:
     consequence_duration_s: int
     options: list[Option]
     scenario_type: ScenarioType
+    skin: str = ""
     has_deception_metric: bool = False
     has_post_wait: bool = False
     post_wait_duration_s: int = 0
@@ -129,11 +130,12 @@ def _build_academic_pressure() -> Domain:
         title="Exam Countdown Rush",
         paradigm="MIST (Dedovic et al., 2005)",
         priming_text="Your semester GPA hinges on this assessment. You have 40 seconds. The system will compare your results against other participants.",
-        priming_duration_s=8,
+        priming_duration_s=20,
         decision_duration_s=40,
         consequence_duration_s=4,
         options=[Option(1, "Option 1", "Assessment complete."), Option(2, "Option 2", "Assessment complete."), Option(3, "Option 3", "Assessment complete."), Option(4, "Option 4", "Assessment complete.")],
         scenario_type=ScenarioType.MIST_ARITHMETIC,
+        skin="exam_hall",
         math_problems=generate_math_problems(4),
         jitter_trigger_s=20,
     )
@@ -143,7 +145,7 @@ def _build_academic_pressure() -> Domain:
         title="Academic Misconduct Hearing",
         paradigm="Evaluative Observation Paradigm (Geen, 1991)",
         priming_text="You've been called before your school's academic integrity committee following an incident during your last exam. You must submit a written statement. The committee's decision will affect your academic standing — it is final.",
-        priming_duration_s=8,
+        priming_duration_s=20,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
@@ -152,6 +154,7 @@ def _build_academic_pressure() -> Domain:
             Option(3, "Provide documentation that the incident was a misunderstanding", conseq_b),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="misconduct_hearing",
     )
     return Domain(DomainID.ACADEMIC_PRESSURE, "Academic Performance Pressure", (s_a, s_b))
 
@@ -164,14 +167,15 @@ def _build_peer_influence() -> Domain:
         title="Group Chat Vote",
         paradigm="Digital Asch Conformity (Stoll et al., 2022; Berns et al., 2005)",
         priming_text="Your friend group is deciding in a chat whether to share a private video of a classmate. Four friends have already voted. You are the last to respond.",
-        priming_duration_s=8,
-        decision_duration_s=35,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Agree — share it", "The video has been shared. The classmate found out — they're upset and asking who agreed to it.", is_conforming=True),
             Option(2, "Disagree — refuse and ask others to delete it", "The group has noted your objection. Some members are calling it an overreaction.", is_conforming=False),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="group_chat",
     )
     s_b = Scenario(
         id="peer_influence_b",
@@ -179,8 +183,8 @@ def _build_peer_influence() -> Domain:
         title="Unfair Team Blame",
         paradigm="Taboo Trade-Off Paradigm (Tetlock et al., 2000)",
         priming_text="Your team project received a failing grade. The instructor says one team member must be identified as responsible for the core section that failed. The rest of the team has already submitted their assessment.",
-        priming_duration_s=8,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Accept responsibility to preserve team harmony", "You accepted responsibility. The team received course credit while your record reflects the failure.", is_conforming=True),
@@ -188,6 +192,7 @@ def _build_peer_influence() -> Domain:
             Option(3, "Refuse to participate in the blame assignment", "You refused to assign blame. The instructor penalized the entire group equally for non-compliance.", is_conforming=False),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="team_kanban",
     )
     return Domain(DomainID.PEER_INFLUENCE, "Peer Influence & Social Conformity", (s_a, s_b))
 
@@ -201,11 +206,12 @@ def _build_impulsivity_gratification() -> Domain:
         title="Instant Loot vs. Multiplier Trap",
         paradigm="Real-Time Waiting Task / Digital Marshmallow Test (McGuire & Kable, 2012)",
         priming_text="You've unlocked a reward chest. You can claim it now for a small payout, or wait as the value multiplies. But the chest is unstable — it could collapse at any moment, and you'd lose everything.",
-        priming_duration_s=8,
+        priming_duration_s=20,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[Option(1, "CLAIM NOW", "Reward secured."), Option(2, "KEEP WAITING", "Chest collapsed. All accumulated value lost.")],
         scenario_type=ScenarioType.REWARD_ACCUMULATOR,
+        skin="reward_crate",
         reward_config=r_cfg,
     )
     s_b = Scenario(
@@ -214,14 +220,15 @@ def _build_impulsivity_gratification() -> Domain:
         title="Submit Now vs. Improve More",
         paradigm="Kirby Monetary Choice Questionnaire (Kirby et al., 1999)",
         priming_text="You've finished a draft of your assignment. You can submit it now for a guaranteed adequate grade, or spend more time refining it — which could significantly improve your grade, but might also make things worse if you second-guess yourself.",
-        priming_duration_s=8,
-        decision_duration_s=35,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Submit now — guaranteed 'Adequate — Requirements Met'", "Grade recorded: Adequate — Requirements Met."),
             Option(2, "Request more time — outcome unknown", "Extended review complete."),
         ],
         scenario_type=ScenarioType.DELAY_WAIT,
+        skin="document_workspace",
         delay_wait_outcomes=["Extended review complete: Excellent.", "Extended review complete: Insufficient — major revision required."],
         post_wait_duration_s=15,
         post_wait_text="Reviewing additional changes...",
@@ -238,8 +245,8 @@ def _build_risk_reward() -> Domain:
         title="Tournament Strategy",
         paradigm="Iowa Gambling Task (Bechara et al., 1994)",
         priming_text="You're competing in an online tournament with limited attempts remaining. Three strategies are available. Historical performance data for each approach is incomplete — some strategies carry hidden risks. Your final ranking will be recorded.",
-        priming_duration_s=8,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Strategy A: Safe approach — Low variance, reliable 8% average score improvement per round", "Tournament updated: Moderate gain realized as projected."),
@@ -247,6 +254,7 @@ def _build_risk_reward() -> Domain:
             Option(3, "Strategy C: Experimental approach — Extreme variance, avg 45% improvement, [4 rounds of data missing]", "Critical error: Ranking dropped significantly."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="tournament_bracket",
     )
     s_b = Scenario(
         id="risk_reward_b",
@@ -254,11 +262,12 @@ def _build_risk_reward() -> Domain:
         title="Viral Post Escalation",
         paradigm="BART (Lejuez et al., 2002)",
         priming_text="You've been posting increasingly bold content online. Each post gets more attention — but the risk of being reported and losing access to your account grows with every step. You can stop now, or push further.",
-        priming_duration_s=8,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[Option(1, "STOP POSTING", "Following secured."), Option(2, "POST ANOTHER", "Account suspended. All accumulated following lost.")],
         scenario_type=ScenarioType.BART_ESCALATION,
+        skin="social_analytics",
         bart_config=b_cfg,
     )
     return Domain(DomainID.RISK_REWARD, "Risk-Reward Tradeoff", (s_a, s_b))
@@ -272,7 +281,7 @@ def _build_rule_ambiguity() -> Domain:
         title="Portal Access Dilemma",
         paradigm="Personal Moral Dilemma (Greene et al., 2001)",
         priming_text="Your close friend is locked out of the school's submission portal due to a technical error that won't be fixed for three weeks — past the assignment deadline. You still have their login saved from a previous help session. Using it violates the school's IT policy.",
-        priming_duration_s=8,
+        priming_duration_s=20,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
@@ -281,6 +290,7 @@ def _build_rule_ambiguity() -> Domain:
             Option(3, "Find a workaround through the system's guest access feature — technically not their credentials, but exploits a known loophole", "The guest access loophole has been patched. An investigation into unusual submissions has been opened."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="portal_log",
         jitter_trigger_s=15,
     )
     s_b = Scenario(
@@ -289,8 +299,8 @@ def _build_rule_ambiguity() -> Domain:
         title="Borrowed Template",
         paradigm="Taboo Trade-Off (Tetlock et al., 2000)",
         priming_text="Your group has been building on an old assignment from a senior student who graduated. You just realized the work was never formally shared — it could be classified as academic plagiarism. Removing it now sets your entire project back by days before the deadline.",
-        priming_duration_s=8,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Remove the borrowed sections and accept the delay — academically honest, harms the team's timeline", "Sections removed. Project delayed by several days before submission."),
@@ -298,6 +308,7 @@ def _build_rule_ambiguity() -> Domain:
             Option(3, "Contact the original student and ask for formal permission — transparent, but their response is unpredictable and time is short", "Permission request pending. Project submission frozen awaiting authorization."),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="code_diff",
     )
     return Domain(DomainID.RULE_AMBIGUITY, "Rule-Boundary Ambiguity", (s_a, s_b))
 
@@ -312,7 +323,7 @@ def _build_future_uncertainty() -> Domain:
         title="Track Selection Crossroads",
         paradigm="Ambiguous Feedback Paradigm (Hirsh & Inzlicht, 2008)",
         priming_text="You've been offered two paths forward. Both have significant implications for your future, but the outcomes of each path are influenced by factors you cannot predict or control.",
-        priming_duration_s=8,
+        priming_duration_s=20,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
@@ -320,9 +331,10 @@ def _build_future_uncertainty() -> Domain:
             Option(2, "Path B: New, challenging path — Unpredictable trajectory. Support structure: [UNDER REVIEW].", rec_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="fork_map",
         has_post_wait=True,
         post_wait_duration_s=12,
-        post_wait_text="Processing your selection...",
+        post_wait_text="Synthesizing outcome projections...",
     )
     s_b = Scenario(
         id="future_uncertainty_b",
@@ -330,8 +342,8 @@ def _build_future_uncertainty() -> Domain:
         title="Ambiguous Feedback Before Finals",
         paradigm="Ambiguous Feedback + Uncertain Threat (Grillon et al., 2004; de Berker et al., 2016)",
         priming_text="Before your final assessment, your teacher pulls you aside: 'Your approach throughout this term has been... atypical compared to your peers.' You don't know if this is a compliment or a warning. You must now respond.",
-        priming_duration_s=8,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "I've been approaching each task based on my instincts and what made sense to me.", flag_conseq),
@@ -339,6 +351,7 @@ def _build_future_uncertainty() -> Domain:
             Option(3, "I don't think the standard approach was appropriate for what we were being asked to do.", flag_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="notification_stack",
         has_post_wait=True,
         post_wait_duration_s=10,
         post_wait_text="Recalculating assessment parameters...",
@@ -356,7 +369,7 @@ def _build_social_evaluation() -> Domain:
         title="Live Panel Presentation Defense",
         paradigm="TSST Speech Task (Kirschbaum et al., 1993) + Biofeedback Amplification (Wieser et al., 2010)",
         priming_text="You are presenting your project findings to an expert evaluation panel. The panel's assessment will determine your project grade. The system is monitoring your physiological composure in real-time.",
-        priming_duration_s=10,
+        priming_duration_s=20,
         decision_duration_s=45,
         consequence_duration_s=4,
         options=[
@@ -365,6 +378,7 @@ def _build_social_evaluation() -> Domain:
             Option(3, "Challenge the reviewer's qualifications", panel_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="defense_stage",
         has_deception_metric=True,
         jitter_trigger_s=15,
     )
@@ -374,8 +388,8 @@ def _build_social_evaluation() -> Domain:
         title="Public Critique",
         paradigm="Evaluative Observation + Negative Feedback (Geen, 1991; Smeets et al., 2012)",
         priming_text="Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. The system is monitoring your composure in real-time.",
-        priming_duration_s=10,
-        decision_duration_s=40,
+        priming_duration_s=20,
+        decision_duration_s=45,
         consequence_duration_s=4,
         options=[
             Option(1, "Accept the criticism and commit to improving", crit_conseq),
@@ -383,6 +397,7 @@ def _build_social_evaluation() -> Domain:
             Option(3, "Push back — the criticism is too vague and not specific enough to act on", crit_conseq),
         ],
         scenario_type=ScenarioType.STANDARD_MCQ,
+        skin="classroom_critique",
         has_deception_metric=True,
     )
     return Domain(DomainID.SOCIAL_EVALUATION, "Social Evaluation & Authority Response", (s_a, s_b))

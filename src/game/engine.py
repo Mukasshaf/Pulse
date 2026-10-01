@@ -108,6 +108,7 @@ class GameEngine:
         self._consequence_text: str = ""
         self._selected_option_index: int | None = None
         self._decision_presented_ts_ms: int = 0
+        self._is_question_popup_active: bool = False
 
         self._mist_runner: MISTRunner | None = None
         self._bart_runner: BARTRunner | None = None
@@ -171,6 +172,7 @@ class GameEngine:
         self._current_state = new_state
         self._state_elapsed_ms = 0
         self._selected_option_index = None
+        self._is_question_popup_active = False
         now = self._now_ms()
         curr_scenario = self._get_safe_scenario()
 
@@ -220,13 +222,25 @@ class GameEngine:
         return None
 
     def _handle_input(self, event: pygame.event.Event) -> None:
-        """Route KEYDOWN keyboard events to current state handler."""
-        if event.type != pygame.KEYDOWN:
-            return
-        if self._current_state == EngineState.ID_INPUT:
-            self._handle_id_input(event)
-        elif self._current_state == EngineState.DECISION:
-            self._handle_decision_input(event)
+        """Route keyboard events to current state handler."""
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_TAB, pygame.K_q, pygame.K_h):
+                self._is_question_popup_active = True
+                return
+            if self._current_state == EngineState.ID_INPUT:
+                self._handle_id_input(event)
+            elif self._current_state == EngineState.PRIMING:
+                self._handle_priming_input(event)
+            elif self._current_state == EngineState.DECISION:
+                self._handle_decision_input(event)
+        elif event.type == pygame.KEYUP:
+            if event.key in (pygame.K_TAB, pygame.K_q, pygame.K_h):
+                self._is_question_popup_active = False
+
+    def _handle_priming_input(self, event: pygame.event.Event) -> None:
+        """Allow skipping remaining priming countdown with SPACE or ENTER."""
+        if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+            self._transition_to(EngineState.DECISION)
 
     def _handle_id_input(self, event: pygame.event.Event) -> None:
         """Process Subject ID text entry."""
@@ -338,6 +352,16 @@ class GameEngine:
         self._state_elapsed_ms += dt_ms
         self._button_flash.update(dt_ms)
         self._ui_effects.is_flashing = self._button_flash.is_flashing()
+
+        # Update active question popup state if keys are actively pressed
+        try:
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_TAB] or keys[pygame.K_q] or keys[pygame.K_h]:
+                self._is_question_popup_active = True
+            elif any(keys):
+                self._is_question_popup_active = False
+        except Exception:
+            pass
 
         if self._current_state == EngineState.BASELINE:
             self._update_baseline(dt_ms)
@@ -462,3 +486,7 @@ class GameEngine:
         elif self._current_state == EngineState.DEBRIEF:
             dur = (self._now_ms() - self.config.session_start_unix_ts_ms) / 1000.0
             self.renderer.draw_debrief(dur, self._scenarios_completed)
+
+        # Question & Briefing Modal Popup (rendered on top of decision/post-wait when button held)
+        if self._is_question_popup_active and scenario and self._current_state in (EngineState.DECISION, EngineState.POST_WAIT):
+            self.renderer.draw_question_popup(scenario)

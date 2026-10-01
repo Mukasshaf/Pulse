@@ -56,3 +56,27 @@ def test_button_flash_lifecycle() -> None:
 
     flash.update(100)
     assert flash.is_flashing() is False
+
+
+def test_radial_shatter_effect() -> None:
+    """Verify 12-particle radial rectangular shatter dispersal and lifecycle."""
+    import pygame
+    from src.game.ui_effects import RadialShatterEffect
+
+    shatter = RadialShatterEffect(num_particles=12, duration_ms=500)
+    assert shatter.is_active is False
+    assert len(shatter.particles) == 0
+
+    shatter.trigger((640, 360))
+    assert shatter.is_active is True
+    assert len(shatter.particles) == 12
+
+    # Verify particles move outwards radially
+    surface = pygame.Surface((1280, 720))
+    shatter.update(100)
+    shatter.draw(surface)
+    assert shatter.is_active is True
+
+    # After full duration, effect expires
+    shatter.update(500)
+    assert shatter.is_active is False

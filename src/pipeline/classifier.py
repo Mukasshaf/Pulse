@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import pandas as pd
 import json
@@ -81,7 +79,7 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray,
 #  Grid search 
 
 def grid_search(X: np.ndarray, y: np.ndarray,
-                groups: np.ndarray = None) -> RandomForestClassifier:
+                groups: np.ndarray | None = None) -> RandomForestClassifier:
    
     cv = LeaveOneGroupOut() if groups is not None else StratifiedKFold(n_splits=5)
     cv_kwargs = {"groups": groups} if groups is not None else {}
