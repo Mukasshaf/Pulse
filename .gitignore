@@ -1,52 +1,17 @@
-# Byte-compiled / optimized / DLL files
+readme2.md
+
+
+.env
+.vscode/
+
+outputs/
+data/
+raw/
+graphify-out/
+
 __pycache__/
-*.py[cod]
-*.py[oc]
-*$py.class
-build/
-dist/
-wheels/
-*.egg-info
+*.pyc
 
-# Testing and type checking caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Virtual environments
 .venv/
 .venv-win/
-venv/
-ENV/
-env/
-.env
-
-# Data directories (raw datasets, captures, event logs)
-/data/*
-!/data/WESAD/
-!/data/hardware/
-!/data/game_logs/
-!/data/**/.gitkeep
-
-# Output artifacts (trained models, feature matrices, plots, run logs)
-/outputs/*
-!/outputs/features/
-!/outputs/models/
-!/outputs/plots/
-!/outputs/results/
-!/outputs/**/.gitkeep
-
-/graphify-out/
-/raw/
-
-# Operating system artifacts
-.DS_Store
-Thumbs.db
-ehthumbs.db
-
-# IDE & Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+.venv-wsl/

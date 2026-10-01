@@ -1,4 +1,4 @@
-﻿"""
+"""
 serial_reader.py -- reads live ESP32 sensor stream over serial USB,
 validates rows on arrival, and writes a timestamped CSV.
 
@@ -34,7 +34,7 @@ except ImportError:
     serial = None   # allow import without pyserial for testing
 
 # --- Configuration ---
-DEFAULT_PORT     = "COM3"
+DEFAULT_PORT     = "COM9"
 DEFAULT_BAUD     = 115200
 DEFAULT_TIMEOUT  = 1.0          # seconds
 DEFAULT_OUT_DIR  = "raw"
