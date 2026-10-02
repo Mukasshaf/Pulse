@@ -184,7 +184,7 @@ def _build_peer_influence() -> Domain:
     s_b = Scenario(
         id="peer_influence_b",
         domain_id=DomainID.PEER_INFLUENCE,
-        title="Unfair Team Blame",
+        title="Team Project Review",
         paradigm="Taboo Trade-Off Paradigm (Tetlock et al., 2000)",
         priming_text="Your team project received a failing grade. The instructor says one team member must be identified as responsible for the core section that failed. The rest of the team has already submitted their assessment.",
         priming_duration_s=DEFAULT_PRIMING_DURATION_S,
@@ -207,7 +207,7 @@ def _build_impulsivity_gratification() -> Domain:
     s_a = Scenario(
         id="impulsivity_gratification_a",
         domain_id=DomainID.IMPULSIVITY_GRATIFICATION,
-        title="Instant Loot vs. Multiplier Trap",
+        title="The Reward Chest",
         paradigm="Real-Time Waiting Task / Digital Marshmallow Test (McGuire & Kable, 2012)",
         priming_text="You've unlocked a reward chest. You can claim it now for a small payout, or wait as the value multiplies. But the chest is unstable — it could collapse at any moment, and you'd lose everything.",
         priming_duration_s=DEFAULT_PRIMING_DURATION_S,
@@ -282,7 +282,7 @@ def _build_rule_ambiguity() -> Domain:
     s_a = Scenario(
         id="rule_ambiguity_a",
         domain_id=DomainID.RULE_AMBIGUITY,
-        title="Portal Access Dilemma",
+        title="Portal Lockout",
         paradigm="Personal Moral Dilemma (Greene et al., 2001)",
         priming_text="Your close friend is locked out of the school's submission portal due to a technical error that won't be fixed for three weeks — past the assignment deadline. You still have their login saved from a previous help session. Using it violates the school's IT policy.",
         priming_duration_s=DEFAULT_PRIMING_DURATION_S,
@@ -343,7 +343,7 @@ def _build_future_uncertainty() -> Domain:
     s_b = Scenario(
         id="future_uncertainty_b",
         domain_id=DomainID.FUTURE_UNCERTAINTY,
-        title="Ambiguous Feedback Before Finals",
+        title="A Remark Before Finals",
         paradigm="Ambiguous Feedback + Uncertain Threat (Grillon et al., 2004; de Berker et al., 2016)",
         priming_text="Before your final assessment, your teacher pulls you aside: 'Your approach throughout this term has been... atypical compared to your peers.' You don't know if this is a compliment or a warning. You must now respond.",
         priming_duration_s=DEFAULT_PRIMING_DURATION_S,

@@ -256,9 +256,9 @@ def test_bart_pacing_cooldown_is_shown_on_the_pump_card(screen: pygame.Surface, 
         renderer.draw_decision(scenario, 30.0, None, UIEffectState(), None, runner, None, None)
         return list(drawn)
 
-    assert "POST ANOTHER (Escalate Reach)" in labels()
+    assert "POST ANOTHER" in labels()
     runner.pump()
     busy = labels()
-    assert "PUBLISHING POST..." in busy and "POST ANOTHER (Escalate Reach)" not in busy
+    assert "PUBLISHING POST..." in busy and "POST ANOTHER" not in busy
     runner.update(BART_PUMP_COOLDOWN_MS)
-    assert "POST ANOTHER (Escalate Reach)" in labels()
+    assert "POST ANOTHER" in labels()

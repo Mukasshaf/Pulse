@@ -210,15 +210,18 @@ def test_key_badge_is_neutral_and_inverts_when_selected(screen: pygame.Surface) 
 
 
 def test_selecting_an_option_never_adds_rosso(screen: pygame.Surface, domain_registry: list[Domain]) -> None:
-    """Verify Rosso Corsa is not used to mark the participant's own choice on plain multiple-choice skins."""
+    """Verify Rosso Corsa never marks the participant's own choice on any skin where one option is committed."""
     renderer = UIRenderer(screen)
-    neutral_selection_skins = {"misconduct_hearing", "group_chat", "team_kanban", "defense_stage", "classroom_critique"}
+    neutral_selection_skins = {
+        "misconduct_hearing", "group_chat", "team_kanban", "document_workspace", "tournament_bracket", "portal_log",
+        "code_diff", "fork_map", "notification_stack", "defense_stage", "classroom_critique",
+    }
     checked: set[str] = set()
     for domain in domain_registry:
         for scenario in domain.scenarios:
             if scenario.skin not in neutral_selection_skins:
                 continue
-            assert scenario.scenario_type == ScenarioType.STANDARD_MCQ
+            assert scenario.scenario_type in (ScenarioType.STANDARD_MCQ, ScenarioType.DELAY_WAIT)
             remaining_s = float(scenario.decision_duration_s)  # full time: no drone, no expiry colouring
             renderer.draw_decision(scenario, remaining_s, None, UIEffectState(), None, None, None, None)
             baseline_rosso = _rosso_pixels(screen)
@@ -227,3 +230,32 @@ def test_selecting_an_option_never_adds_rosso(screen: pygame.Surface, domain_reg
                 assert _rosso_pixels(screen) <= baseline_rosso, f"{scenario.skin} option {index + 1}"
             checked.add(scenario.skin)
     assert checked == neutral_selection_skins
+
+
+def test_option_frame_marks_the_choice_in_white_and_keeps_the_accent_as_a_rule(screen: pygame.Surface) -> None:
+    """Verify the shared option plate: white border once chosen, a hairline when passed over, an accent that is only a left rule."""
+    renderer = UIRenderer(screen)
+    rect = pygame.Rect(100, 100, 400, 80)
+    accent = constants.COLOR_TIMER_GREEN
+
+    screen.fill(COLOR_BG)
+    idle = renderer._draw_option_frame(rect, 0, None, accent=accent)
+    assert (idle.chosen, idle.passed) == (False, False)
+    assert _pixel(screen, rect.topleft) == COLOR_HAIRLINE_SUBTLE
+    assert _pixel(screen, (rect.left + 2, rect.centery)) == accent  # the accent is a left rule ...
+    assert _pixel(screen, (rect.right - 1, rect.centery)) == COLOR_HAIRLINE_SUBTLE  # ... and never the whole border
+
+    chosen = renderer._draw_option_frame(rect, 0, 0, accent=accent)
+    assert chosen.chosen and chosen.ink == COLOR_TEXT_PRIMARY
+    assert _pixel(screen, rect.topleft) == COLOR_TEXT_PRIMARY
+    assert _pixel(screen, (rect.left + 2, rect.centery)) == accent  # unchanged by the choice, so it cannot grade it
+
+    passed = renderer._draw_option_frame(rect, 0, 1, accent=accent)
+    assert passed.passed and passed.ink == COLOR_TEXT_SECONDARY
+    assert _pixel(screen, rect.topleft) == constants.COLOR_HAIRLINE
+    assert _pixel(screen, (rect.left + 2, rect.centery)) != accent  # dimmed toward the canvas
+
+    screen.fill(COLOR_BG)
+    renderer._draw_option_frame(rect, 0, 0)
+    raw = pygame.surfarray.array3d(screen).astype(np.int32)
+    assert int((raw.max(axis=2) - raw.min(axis=2)).max()) == 0  # with no accent the plate is neutral in every state

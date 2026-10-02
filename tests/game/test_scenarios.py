@@ -100,15 +100,15 @@ def test_scenario_titles_and_durations(domain_registry: list[Domain]) -> None:
         "academic_pressure_a": "Exam Countdown Rush",
         "academic_pressure_b": "Academic Misconduct Hearing",
         "peer_influence_a": "Group Chat Vote",
-        "peer_influence_b": "Unfair Team Blame",
-        "impulsivity_gratification_a": "Instant Loot vs. Multiplier Trap",
+        "peer_influence_b": "Team Project Review",
+        "impulsivity_gratification_a": "The Reward Chest",
         "impulsivity_gratification_b": "Submit Now vs. Improve More",
         "risk_reward_a": "Tournament Strategy",
         "risk_reward_b": "Viral Post Escalation",
-        "rule_ambiguity_a": "Portal Access Dilemma",
+        "rule_ambiguity_a": "Portal Lockout",
         "rule_ambiguity_b": "Borrowed Template",
         "future_uncertainty_a": "Track Selection Crossroads",
-        "future_uncertainty_b": "Ambiguous Feedback Before Finals",
+        "future_uncertainty_b": "A Remark Before Finals",
         "social_evaluation_a": "Live Panel Presentation Defense",
         "social_evaluation_b": "Public Critique",
     }
@@ -146,6 +146,36 @@ def test_participant_facing_text_has_no_score_language(domain_registry: list[Dom
 
     game_dir = Path(constants.__file__).parent
     for path in sorted(game_dir.glob("ui*.py")) + sorted((game_dir / "skins").glob("*.py")) + [game_dir / "engine_input.py", game_dir / "engine_state.py"]:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        docstrings = {
+            id(node.body[0].value)
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)) and node.body
+            and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings and banned.search(node.value):
+                offenders.append(f"{path.name}:{node.lineno}: {node.value}")
+    assert offenders == []
+
+
+def test_participant_facing_text_has_no_construct_language(domain_registry: list[Domain]) -> None:
+    """Verify no scenario text and no string drawn by the UI names a paradigm, a construct, or the manipulation."""
+    banned = re.compile(
+        r"\b(mist|tsst|asch|bart|iowa|igt|marshmallow|paradigm|diegetic|construct|demographic|gratification|discounting"
+        r"|(non-)?conform\w*|dissent\w*|ambigu\w*|uncertaint\w*|impulsiv\w*)\b",
+        re.IGNORECASE,
+    )
+    offenders: list[str] = []
+    for domain in domain_registry:
+        for scenario in domain.scenarios:
+            texts = [scenario.title, scenario.priming_text, scenario.post_wait_text, scenario.timeout_consequence]
+            texts += [part for option in scenario.options for part in (option.text, option.consequence_text)]
+            texts += scenario.delay_wait_outcomes or []
+            offenders += [f"{scenario.id}: {text}" for text in texts if banned.search(text)]
+
+    game_dir = Path(constants.__file__).parent
+    for path in sorted(game_dir.glob("ui*.py")) + sorted((game_dir / "skins").glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         docstrings = {
             id(node.body[0].value)

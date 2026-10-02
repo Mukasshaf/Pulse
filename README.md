@@ -15,7 +15,7 @@ Design and validate a domain-based interactive simulation framework that maps au
 - **Phase 1 (WESAD software pipeline)**: Complete. `wesad_loader.py` loads raw WESAD data. `preprocess.py` filters BVP and decomposes EDA into tonic (SCL) and phasic (SCR) components. `features.py` extracts a 9-feature vector over 60s windows. `normalize.py` applies within-subject z-score normalization. `classifier.py` trains a Random Forest with Leave-One-Subject-Out cross-validation. `threshold_detector.py` implements real-time non-ML event flagging.
 - **Phase 2 & Milestone M2 (Hardware Bring-Up)**: Complete. ESP32 acquisition rig verified (drop rate 0.010%, calibrated `ACC_THRESHOLD_HW = 8800.0`, valid pulse IBIs).
 - **Phase 4 (Gamification Engine)**: Complete. 60 FPS state machine in Pygame implementing 7 behavioral domains and 14 scenarios (15–25 age range) with score-free narrative consequence design and host-PC `unix_ts_ms` event logging. Every scenario is one uninterrupted priming → decision → feedback epoch of at least 60 s (a keypress commits the choice; the screen holds until the timer ends), so each one contains a full HRV feature window. A sensor bridge drives the Domain 7 composure display from the ESP32, live or from a recording; it is tested against simulated ports and has not yet been run on the physical device.
-- **Quality gates**: `uv run pytest` (107 tests), `uv run mypy src/ tests/ --strict` and `uv run ruff check .` are all clean across the repository.
+- **Quality gates**: `uv run pytest` (114 tests), `uv run mypy src/ tests/ --strict` and `uv run ruff check .` are all clean across the repository.
 
 ---
 
@@ -142,7 +142,7 @@ Pulse/
 │   ├── __init__.py
 │   ├── conftest.py                       # Shared test fixtures (mock screen, session configs)
 │   │
-│   ├── game/                             # [Ayush] 104 Gamification engine tests
+│   ├── game/                             # [Ayush] 111 Gamification engine tests
 │   │   ├── test_audio.py
 │   │   ├── test_audit_fixes.py           # Exposure floors, composure gating, sensory limits
 │   │   ├── test_bridge_interface.py      # Stream parser, serial / replay bridges (simulated ports)
@@ -154,7 +154,8 @@ Pulse/
 │   │   ├── test_scenario_logic.py
 │   │   ├── test_scenarios.py
 │   │   ├── test_ui.py
-│   │   └── test_ui_effects.py
+│   │   ├── test_ui_effects.py
+│   │   └── test_ui_rules.py              # Setting labels, held state, wait copy, key prompts
 │   │
 │   └── pipeline/                         # [Mukasshaf] ML & Signal tests (3 placeholders)
 │       ├── test_loaders.py
@@ -187,7 +188,7 @@ uv sync
 
 ### Running Tests and Quality Gates
 ```bash
-uv run pytest -v                      # 107 tests
+uv run pytest -v                      # 114 tests
 uv run mypy src/ tests/ --strict      # strict typing, zero errors
 uv run ruff check .                   # lint, zero findings
 ```

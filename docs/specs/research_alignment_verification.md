@@ -50,7 +50,7 @@ For each of the 14 scenarios, I checked:
 - **New framing:** "Friend group deciding in a chat whether to share a private video of a classmate"
 - **Active ingredient check:**
   - **Unanimity of group:** ✅ All 4 friends unanimously selected "share it" — Asch's critical variable (any ally breaks conformity pressure).
-  - **Public visibility of dissent:** ✅ "Your response is visible to all group members."
+  - **Public visibility of dissent:** ✅ "Everyone in this group will see your reply."
   - **No safe choice (both outcomes carry social cost):** ✅ Conforming → classmate is upset; Dissenting → peers call it an overreaction.
   - **Binary choice structure:** ✅ 2 options preserved.
   - **Social pressure as the stressor (not time pressure):** ✅ No timer urgency mechanics.
@@ -59,7 +59,7 @@ For each of the 14 scenarios, I checked:
 > [!IMPORTANT]
 > The new framing is arguably a *more potent* Asch manipulation for 15–25-year-olds than the workplace IT audit. Sharing someone's private video is a personally relevant, emotionally charged scenario that both age groups understand. The original "system audit" framing required professional IT knowledge.
 
-### Scenario B: "Unfair Team Blame" — ✅ UNCHANGED
+### Scenario B: "Team Project Review" (was "Unfair Team Blame") — ✅ UNCHANGED
 - **Paradigm:** Taboo trade-off (Tetlock et al., 2000)
 - **Status:** No changes. School project blame attribution. Already age-appropriate.
 
@@ -67,7 +67,7 @@ For each of the 14 scenarios, I checked:
 
 ## Domain 3: Impulsivity vs. Delayed Gratification (`impulsivity_gratification`)
 
-### Scenario A: "Instant Loot vs. Multiplier Trap" — ✅ UNCHANGED
+### Scenario A: "The Reward Chest" (was "Instant Loot vs. Multiplier Trap") — ✅ UNCHANGED
 - **Paradigm:** Digital Marshmallow Test (McGuire & Kable, 2012)
 - **Status:** No changes. Game-style reward chest. Already age-neutral.
 - **Reward Accumulator mechanic:** ✅ Intact (CLAIM NOW / KEEP WAITING, collapse at 20–40s).
@@ -121,7 +121,7 @@ For each of the 14 scenarios, I checked:
 
 ## Domain 5: Rule-Boundary Ambiguity (`rule_ambiguity`)
 
-### Scenario A: "Portal Access Dilemma" — ✅ ALIGNED
+### Scenario A: "Portal Lockout" (was "Portal Access Dilemma") — ✅ ALIGNED
 - **Paradigm:** Personal moral dilemma (Greene et al., 2001)
 - **Old framing:** "Admin-level credentials to bypass IT security policy for a locked-out friend"
 - **New framing:** "Saved login to friend's submission portal (school IT policy violation)"
@@ -163,7 +163,7 @@ For each of the 14 scenarios, I checked:
 - **Key change:** "Career" removed from title, replaced with "Track" — intentionally ambiguous (academic stream for younger participants, career/program for older ones). The priming text says "two paths forward" without specifying career/academic.
 - **Biosignal prediction:** Sustained tonic SCL elevation (not phasic spikes) + sustained HRV suppression. ✅
 
-### Scenario B: "Ambiguous Feedback Before Finals" — ✅ ALIGNED
+### Scenario B: "A Remark Before Finals" (was "Ambiguous Feedback Before Finals") — ✅ ALIGNED
 - **Paradigm:** Ambiguous feedback + uncertain threat (Grillon et al., 2004; de Berker et al., 2016)
 - **Old framing:** "Algorithm evaluating your session performance — your responses are 'atypical'"
 - **New framing:** "Teacher pulls you aside before finals — your approach has been 'atypical'"

@@ -333,7 +333,7 @@ pygame.display.flip()
 
 If a function exceeds 60 lines (excluding docstring and blank lines), it MUST be decomposed into private helper methods.
 
-> **Known deviation (2026-10-02):** 19 functions in `src/game/` exceed this limit. 15 are the `_draw_skin_*` methods (134–304 lines each, one per simulation skin) and one is `draw_post_wait`. New code must comply; the existing skins are tracked in ARCHITECTURE_SPEC §7.3.
+> **Known deviation (2026-10-02, after the UI review):** 2 functions in `src/game/` exceed this limit: `main._build_parser` (71 lines) and `EngineBase.__init__` (65). The 15 `_draw_skin_*` methods and `draw_post_wait`, which used to be 134–304 lines, were decomposed into helpers (ADR-B9). New code must comply.
 
 ### 8.2 Maximum File Length: 500 Lines
 
@@ -434,7 +434,8 @@ halo = self._mix(COLOR_ACCENT_CYAN, COLOR_BG, 0.65)
 - **Six chromatic tokens, nothing else:** `COLOR_PRIMARY_ROSSO`, `COLOR_PRIMARY_ACTIVE`, `COLOR_SEMANTIC_WARNING`, `COLOR_ACCENT_CYAN`, `COLOR_ACCENT_YELLOW` (= `COLOR_TIMER_AMBER`), `COLOR_TIMER_GREEN`.
 - **Rosso Corsa is for stress triggers, danger states and timer expiry.** It never fills a key prompt and never marks the participant's own selection.
 - **Key prompts** are drawn with `_draw_key_badge(rect, label, selected=, enabled=)`: canvas plate, white label, Grigio border; inverted once chosen; muted while inert. Do not hand-draw a badge.
-- **Selection** on a plain multiple-choice skin is a white border. A risk-coded skin may keep the option's own semantic accent (green / yellow / Rosso) on its border.
+- **Selection is white on every skin (ADR-B9).** Draw options with `_draw_option_card` (or `_draw_option_frame` for a custom layout): white border, inverted key and a white state plate once chosen, dimmed when passed over. Do not hand-draw a selection state.
+- **Colour never grades a choice.** A risk-coded skin may pass `accent=` to show the option's described risk as a left rule, identical before and after the choice. Dilemma and social skins pass no accent.
 - **Blends between two tokens** are allowed only for the three continuous indicators: timer bar, composure bar, reward-chest glow.
 - **Small alert text on a dark surface** uses `COLOR_SEMANTIC_WARNING` (contrast 4.5:1 on the canvas); Rosso Corsa is for strokes, fills and large type.
 - `tests/game/test_palette.py` enforces all of this, down to the hue of every rendered pixel.
@@ -447,6 +448,16 @@ halo = self._mix(COLOR_ACCENT_CYAN, COLOR_BG, 0.65)
 - **Never show telemetry that is not live.** A bridge returns `None` for stale data; the UI then shows STANDBY (§7.9).
 - Reader threads are daemon threads, own no engine state, and communicate only through the lock-protected `StreamBridge` buffer.
 - Tests inject the port, the port lister and the clock. No test opens a real port or sleeps.
+
+### 9.9 Participant-Facing Text and Prompts (ADR-B9)
+
+- **No construct labels.** No string a participant can read names a paradigm, a construct, or the manipulation. This covers scenario titles, the briefing heading, option cards and wait screens, not only skin captions. `test_participant_facing_text_has_no_construct_language` scans the registry and every string literal in `ui*.py` and `skins/*.py`.
+- **The briefing is headed by the setting.** Add the skin to `SETTING_LABELS` in `ui_screens.py`; never draw `scenario.domain_id`.
+- **Options are drawn from the registry.** Use `opt.text`; where it reads "action — trade-off", `_split_option()` gives the two parts. Do not keep a reworded copy in the skin, and do not add a tag that says what the option means.
+- **A wait screen says nothing about the wait:** not its length, not that information is withheld. It shows `scenario.post_wait_text` and that no key is needed.
+- **A key badge is drawn only for a key the engine accepts.** An inert key is muted (`enabled=False`); a passive action has no badge.
+- **Every decision skin ends with `_draw_footer_prompt(idle_text, committed)`.** Once the choice is committed it replaces the key instruction with the stillness prompt.
+- **Layout:** content sits inside `self.MARGIN`, starts at `self.CONTENT_TOP`, and the instruction line is at `self.FOOTER_Y`.
 
 ---
 

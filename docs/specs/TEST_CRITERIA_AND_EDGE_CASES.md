@@ -22,7 +22,7 @@ tests/
 ├── conftest.py                    # Shared fixtures (headless SDL video/audio drivers)
 ├── game/
 │   ├── test_constants.py          #  5 tests
-│   ├── test_scenarios.py          # 10   (+ locked durations, no score language)
+│   ├── test_scenarios.py          # 11   (+ locked durations, no score language, no construct language)
 │   ├── test_event_logger.py       #  4
 │   ├── test_audio.py              #  2
 │   ├── test_bridge_interface.py   # 12   (stream parser, SerialBridge, ReplayBridge, port scan / probe, create_bridge)
@@ -32,15 +32,16 @@ tests/
 │   ├── test_engine.py             # 14
 │   ├── test_audit_fixes.py        # 14   (audit remediation regressions)
 │   ├── test_engine_paradigms.py   #  7   (rest option, CLI, bridge lifecycle, MIST / BART logging and indicators)
-│   └── test_palette.py            #  6   (Ferrari tokens, no chromatic literals, per-pixel hue audit, key badge)
+│   ├── test_palette.py            #  7   (Ferrari tokens, no chromatic literals, per-pixel hue audit, key badge, option plate)
+│   └── test_ui_rules.py           #  5   (UI review: setting labels, held-state footer, wait copy, key prompts, exam wrong mark)
 └── pipeline/                      #  3   (loader / preprocess / feature placeholders)
 ```
 
-**Current total: 107 tests** (104 game + 3 pipeline placeholders), about 5 s. The three commands below are the completion gate for any change, and all three must be clean:
+**Current total: 114 tests** (111 game + 3 pipeline placeholders), about 5 s. The three commands below are the completion gate for any change, and all three must be clean:
 
 ```powershell
-uv run pytest -v                      # 107 passed, no warnings
-uv run mypy src/ tests/ --strict      # Success: no issues found in 76 source files
+uv run pytest -v                      # 114 passed, no warnings
+uv run mypy src/ tests/ --strict      # Success: no issues found in 77 source files
 uv run ruff check .                   # All checks passed (whole repository, including validation/)
 ```
 
@@ -129,6 +130,7 @@ def sample_event():
 | Generated problems have valid `correct_index` | `all(0 <= p.correct_index < 4 for p in problems)` |
 | **Durations are locked** (`test_scenario_durations_are_locked`) | Priming == `DEFAULT_PRIMING_DURATION_S` == 20 for all 14; decision == 45 except `academic_pressure_a` == 40; consequence == 4; `social_evaluation_b` decision == 45; priming + decision + consequence ≥ `MIN_ACTIVE_EPOCH_S` for every scenario; the MIST priming text quotes the real duration |
 | **No score language** (`test_participant_facing_text_has_no_score_language`) | No scenario title, briefing, option, consequence or wait text, and no string literal drawn by `ui*.py`, `skins/*.py` or the engine, contains "score", "points" or "leaderboard" |
+| **No construct language** (`test_participant_facing_text_has_no_construct_language`) | No scenario title, briefing, option, consequence or wait text, and no string literal drawn by `ui*.py` or `skins/*.py`, names a paradigm or a construct: MIST, TSST, Asch, BART, Iowa, IGT, marshmallow, paradigm, diegetic, construct, demographic, gratification, discounting, conform…, dissent…, ambigu…, uncertaint…, impulsiv… (docstrings are excluded) |
 | All priming texts are non-empty strings | `all(len(s.priming_text) > 0 ...)` |
 | All consequence texts are non-empty strings | `all(len(o.consequence_text) > 0 ...)` |
 | Domain dataclass is frozen | `pytest.raises(FrozenInstanceError, ...)` |
@@ -309,7 +311,7 @@ def sample_event():
 | `test_mist_item_timeout_is_logged_as_an_incorrect_answer` | An unanswered item produces one `MATH_ANSWER` row with empty `key_pressed` / `option_index`, `correct: false`, `timed_out: true`, the `item_limit_ms` in force and the problem text; the flash follows on the next frame; the state stays DECISION |
 | `test_bart_pumps_are_paced_and_log_the_pressure_curve` | A second pump inside the cooldown is ignored; accepted pumps log `pump` 1, 2 with `burst_prob` 0.02, 0.05 and rising `instability`; `BART_SECURE` logs `pumps: 2` and `next_burst_prob: 0.08` |
 | `test_mist_item_countdown_bar_drains_and_turns_rosso_near_expiry` | With half the item time left the bar adds no Rosso pixels; below 25 % it is Rosso and its pixel count halves from 20 % to 10 % remaining |
-| `test_bart_pacing_cooldown_is_shown_on_the_pump_card` | The pump card reads "POST ANOTHER (Escalate Reach)" when live, "PUBLISHING POST..." inside the cooldown, and live again after it |
+| `test_bart_pacing_cooldown_is_shown_on_the_pump_card` | The pump card reads "POST ANOTHER" when live, "PUBLISHING POST..." inside the cooldown, and live again after it |
 
 ### 2.11 `test_palette.py` (ADR-B5)
 
@@ -320,7 +322,18 @@ def sample_event():
 | `test_off_palette_detector_flags_foreign_hues` | The detector accepts all six tokens and their blends toward canvas and white, and counts exactly the pixels of a purple and a navy patch |
 | `test_every_screen_renders_inside_the_palette` | 14 skins × (idle, selected + flashing, final seconds), BART burst, chest collapse, briefing popup, priming, feedback, post-wait, ID input, baseline, rest, debrief: zero pixels with a foreign hue |
 | `test_key_badge_is_neutral_and_inverts_when_selected` | Badge border is `COLOR_TEXT_SECONDARY`, plate `COLOR_BG`; selected plate is white; disabled border is `COLOR_HAIRLINE_SUBTLE`; no Rosso pixel in any state |
-| `test_selecting_an_option_never_adds_rosso` | On the five plain multiple-choice skins, selecting any option never increases the number of Rosso pixels |
+| `test_selecting_an_option_never_adds_rosso` | On all eleven skins that commit one option (the ten multiple-choice skins and the delay-wait editor), selecting any option never increases the number of Rosso pixels |
+| `test_option_frame_marks_the_choice_in_white_and_keeps_the_accent_as_a_rule` | The shared option plate: idle border is `COLOR_HAIRLINE_SUBTLE`, chosen border is white, passed-over border is `COLOR_HAIRLINE`; an accent is a left rule only, identical before and after the choice and dimmed when passed over; with no accent the plate has no chromatic pixel in any state |
+
+### 2.12 `test_ui_rules.py` (ADR-B9)
+
+| Test | Assertion |
+|---|---|
+| `test_briefing_names_the_setting_not_the_research_domain` | For all 14 scenarios the skin has a `SETTING_LABELS` entry; the priming screen and the re-read popup draw that setting and never the domain name |
+| `test_committed_choice_changes_the_footer_to_a_stillness_prompt` | On the eleven skins that commit one option, "RESPONSE RECORDED" is drawn once an option is selected and not before |
+| `test_wait_screens_say_nothing_about_the_wait` | The three post-decision waits draw the registry status text and no string that states a duration or says that information is embargoed, withheld or not revealed; scene furniture (a clock face, a bearing, a word count) is not a duration |
+| `test_reward_waiting_carries_no_key_prompt` | The reward chest draws exactly one key badge, `1`: waiting is passive and the engine ignores key 2 there |
+| `test_exam_wrong_mark_does_not_cover_the_question` | While the flash is on, "INCORRECT" is drawn and its rect does not intersect the arithmetic item's rect; without the flash it is not drawn |
 
 ---
 
@@ -475,13 +488,13 @@ These assertions MUST pass for any implementation to be considered complete. The
 □ All files begin with docstring + `from __future__ import annotations`
 □ No circular imports (verified by importing all modules in isolation)
 □ No file exceeds 500 lines (largest in src/game/: scenarios.py, 428; largest test: test_ui.py, 495)
-□ No function exceeds 60 lines (excluding docstring) — NOT MET, see below
+□ No function exceeds 60 lines (excluding docstring) — met in every UI module; 2 exceptions elsewhere, see below
 ```
-> **Status (2026-10-02):** the file-length rule is met across `src/` and `tests/`. The function-length rule is not: 19 functions in `src/game/` exceed 60 lines, 15 of them the `_draw_skin_*` methods (134–304 lines). Tracked in ARCHITECTURE_SPEC §7.3.
+> **Status (2026-10-02, after the UI review):** the file-length rule is met across `src/` and `tests/`. Two functions in `src/game/` exceed 60 lines: `main._build_parser` (71) and `EngineBase.__init__` (65). The 15 `_draw_skin_*` methods and `draw_post_wait` no longer do (ADR-B9). Tracked in ARCHITECTURE_SPEC §7.3.
 
 ### Gate 2: Type Safety
 ```
-□ `mypy src/ tests/ --strict` produces 0 errors (76 source files, verified clean 2026-10-02)
+□ `mypy src/ tests/ --strict` produces 0 errors (77 source files, verified clean 2026-10-02)
 □ `ruff check .` produces 0 findings across the whole repository (verified clean 2026-10-02)
 □ All function signatures have complete type annotations
 □ No `Any` in src/game/ (the pipeline uses `dict[str, Any]` for its signal dictionaries)

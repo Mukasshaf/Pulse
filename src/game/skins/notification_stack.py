@@ -1,4 +1,4 @@
-"""Simulation skin `notification_stack` for scenario `future_uncertainty_b`."""
+"""Simulation skin `notification_stack` for scenario `future_uncertainty_b`, with its post-decision wait."""
 from __future__ import annotations
 
 import math
@@ -9,9 +9,9 @@ from src.game.constants import (
     COLOR_ACCENT_CYAN,
     COLOR_CARD_BG,
     COLOR_HAIRLINE,
+    COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
-    COLOR_TIMER_AMBER,
     COLOR_TIMER_GREEN,
 )
 from src.game.scenario_logic import BARTRunner, MISTRunner, RewardAccumulator
@@ -19,9 +19,12 @@ from src.game.scenarios import Scenario
 from src.game.ui_components import UIComponents
 from src.game.ui_effects import UIEffectState
 
+CARD_W = 840
+REMARK = ("Your approach throughout this term has been... ", "? atypical ?", " compared to your peers.")
+
 
 class NotificationStackSkin(UIComponents):
-    """Renders the `notification_stack` decision skin."""
+    """Renders the `notification_stack` decision skin and its wait screen from one shared lock screen."""
 
     def _draw_skin_notification_stack(
         self,
@@ -35,182 +38,75 @@ class NotificationStackSkin(UIComponents):
         composure_fraction: float | None,
     ) -> bool:
         """Render notification_stack simulation skin: minimalist lockscreen notification and 3 draft responses."""
-        vx, vy = effects.vibration_offset
-        jx, jy = effects.jitter_offset
-        ox = vx + jx
-        oy = vy + jy
+        offset = (effects.vibration_offset[0] + effects.jitter_offset[0], effects.vibration_offset[1] + effects.jitter_offset[1])
+        notice = self._draw_lockscreen(offset, dimmed=False)
 
-        cx = self.width // 2 + ox
-
-        # 1. Lockscreen Top Status Bar
-        self._draw_text(
-            "23:42",
-            self.font_title,
-            (219, 219, 219),
-            (cx, 106 + oy),
-            center=True,
-        )
-        self._draw_text(
-            "Friday, September 19 • Midterm Assessment Period",
-            self.font_small,
-            (140, 140, 140),
-            (cx, 134 + oy),
-            center=True,
-        )
-
-        # Status icons (Right: Battery + Signal)
-        stat_x = self.width - 140 + ox
-        stat_y = 106 + oy
-        # Battery outline
-        pygame.draw.rect(self.screen, (150, 150, 150), (stat_x + 60, stat_y, 22, 12), width=1, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (stat_x + 62, stat_y + 2, 14, 8))
-        pygame.draw.rect(self.screen, (150, 150, 150), (stat_x + 82, stat_y + 3, 2, 6))
-        # Signal bars
-        for b_i in range(4):
-            bh = 4 + b_i * 3
-            pygame.draw.rect(self.screen, (189, 189, 189), (stat_x + 36 + b_i * 5, stat_y + 12 - bh, 3, bh))
-
-        # 2. Centered Sparse Notification Card
-        card_w = 840
-        card_h = 175
-        notif_rect = pygame.Rect(cx - card_w // 2, 156 + oy, card_w, card_h)
-        self._draw_card(notif_rect, border_color=COLOR_HAIRLINE, bg_color=COLOR_CARD_BG)
-
-        # Card Header: Authority Seal + Sender
-        seal_cx = notif_rect.left + 36
-        seal_cy = notif_rect.top + 34
-        pygame.draw.circle(self.screen, (42, 42, 42), (seal_cx, seal_cy), 18)
-        pygame.draw.circle(self.screen, (167, 167, 167), (seal_cx, seal_cy), 18, width=2)
-        pygame.draw.circle(self.screen, (167, 167, 167), (seal_cx, seal_cy), 14, width=1)
-        star_pts = []
-        for p_i in range(10):
-            r_pt = 7 if p_i % 2 == 0 else 3.2
-            ang = -math.pi / 2 + p_i * (math.pi / 5)
-            star_pts.append((seal_cx + int(r_pt * math.cos(ang)), seal_cy + int(r_pt * math.sin(ang))))
-        pygame.draw.polygon(self.screen, (167, 167, 167), star_pts)
-
-        self._draw_text(
-            "ACADEMIC EVALUATOR / SUPERVISOR",
-            self.font_body,
-            COLOR_TEXT_PRIMARY,
-            (seal_cx + 28, notif_rect.top + 14),
-        )
-        self._draw_text(
-            "FACULTY PORTAL • CONFIDENTIAL PERFORMANCE NOTICE",
-            self.font_mono_small,
-            (144, 144, 144),
-            (seal_cx + 28, notif_rect.top + 38),
-        )
-        self._draw_text("Now • Priority Tier 1", self.font_small, COLOR_TIMER_AMBER, (notif_rect.right - 20, notif_rect.top + 26), midright=True)
-
-        # Divider
-        pygame.draw.line(self.screen, COLOR_HAIRLINE, (notif_rect.left + 20, notif_rect.top + 68), (notif_rect.right - 20, notif_rect.top + 68), 1)
-
-        # Content Message with prominent highlighted "? atypical ?"
-        msg_y = notif_rect.top + 84
-        prefix = "Your approach throughout this term has been... "
-        atypical_str = "? atypical ?"
-        suffix = " compared to your peers."
-
-        pref_w = self.font_body.size(prefix)[0]
-        atyp_w = self.font_title.size(atypical_str)[0]
-
-        start_text_x = notif_rect.left + 24
-        self._draw_text(prefix, self.font_body, (227, 227, 227), (start_text_x, msg_y + 4))
-
-        # Cyan highlighted box for "? atypical ?"
-        pill_rect = pygame.Rect(start_text_x + pref_w, msg_y - 2, atyp_w + 16, 36)
-        pygame.draw.rect(self.screen, (28, 28, 28), pill_rect, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_ACCENT_CYAN, pill_rect, width=1, border_radius=0)
-        self._draw_text(atypical_str, self.font_title, COLOR_ACCENT_CYAN, pill_rect.center, center=True)
-
-        self._draw_text(suffix, self.font_body, (227, 227, 227), (pill_rect.right + 8, msg_y + 4))
-
-        # Ambiguity Subtext Pill
-        amb_tag = pygame.Rect(notif_rect.left + 24, notif_rect.bottom - 36, notif_rect.width - 48, 24)
-        pygame.draw.rect(self.screen, (32, 32, 32), amb_tag, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_TIMER_AMBER, amb_tag, width=1, border_radius=0)
-        self._draw_text(
-            "[ EVALUATOR INTENT UNRESOLVED: COMMENDATION VS. CRITIQUE FULLY INDETERMINATE ]",
-            self.font_mono_small,
-            COLOR_TIMER_AMBER,
-            amb_tag.center,
-            center=True,
-        )
-
-        # 3. Draft Responses: 3 Stacked Cards
-        draft_header_y = notif_rect.bottom + 12
-        self._draw_text(
-            "SELECT DRAFT RESPONSE TO SUPERVISOR:",
-            self.font_small,
-            COLOR_TEXT_SECONDARY,
-            (notif_rect.left, draft_header_y),
-        )
-
-        drafts = [
-            (
-                1,
-                "Draft 1: Autonomous / Instinctive Orientation",
-                '"I\'ve been approaching each task based on my instincts and what made sense to me."',
-                "[ AUTONOMOUS ORIENTATION // REJECTS RUBRIC CONSTRAINTS ]",
-                COLOR_ACCENT_CYAN,
-                (33, 33, 33),
-            ),
-            (
-                2,
-                "Draft 2: Methodical / Deliberative Orientation",
-                '"I\'ve been carefully considering each step before committing to anything."',
-                "[ DELIBERATIVE CAUTION // ADHERES TO COMPLIANT REASONING ]",
-                COLOR_TIMER_GREEN,
-                (34, 34, 34),
-            ),
-            (
-                3,
-                "Draft 3: Critical / Non-Conformist Orientation",
-                '"I don\'t think the standard approach was appropriate for what we were being asked to do."',
-                "[ DIRECT CHALLENGE // QUESTIONS EVALUATION STANDARD ]",
-                COLOR_TEXT_PRIMARY,
-                (27, 27, 27),
-            ),
-        ]
-
-        cards_start_y = draft_header_y + 22
-        d_card_h = 92
-        d_gap = 12
-
-        for i, (key, label, quote, tag, accent_col, bg_col) in enumerate(drafts):
-            dy = cards_start_y + i * (d_card_h + d_gap)
-            d_rect = pygame.Rect(cx - card_w // 2, dy, card_w, d_card_h)
-
-            is_sel = (selected_index == i)
-            b_col = accent_col if is_sel else COLOR_HAIRLINE
-            card_bg = bg_col if is_sel else COLOR_CARD_BG
-            self._draw_card(d_rect, border_color=b_col, bg_color=card_bg)
-
-            # Key Badge
-            k_badge = pygame.Rect(d_rect.left + 14, d_rect.top + 14, 30, 30)
-            self._draw_key_badge(k_badge, str(key), selected=is_sel)
-
-            self._draw_text(label, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 14, d_rect.top + 10))
-            quote_rect = pygame.Rect(k_badge.right + 14, d_rect.top + 34, d_rect.width - 80, 26)
-            self._draw_wrapped_text(quote, self.font_small, (227, 227, 227) if is_sel else (179, 179, 179), quote_rect, center_v=True)
-
-            # Bottom tag
-            t_rect = pygame.Rect(k_badge.right + 14, d_rect.bottom - 24, 420, 18)
-            pygame.draw.rect(self.screen, (32, 32, 32), t_rect, border_radius=0)
-            pygame.draw.rect(self.screen, accent_col, t_rect, width=1, border_radius=0)
-            self._draw_text(tag, self.font_mono_small, accent_col, t_rect.center, center=True, max_width=t_rect.width - 10)
-
-            if is_sel:
-                self._draw_text("[DISPATCHING DRAFT...]", self.font_mono_small, accent_col, (d_rect.right - 20, d_rect.top + 12), midright=True)
-
-        # Bottom Prompt
-        self._draw_text(
-            "PRESS KEY [1], [2], OR [3] TO DISPATCH RESPONSE TO SUPERVISOR",
-            self.font_small,
-            (140, 140, 140),
-            (self.width // 2, self.height - 20),
-            center=True,
-        )
-
+        # Reply drafts: the words the participant would send, exactly as logged, with no label on what they mean
+        self._draw_text("REPLY DRAFTS", self.font_mono_small, COLOR_TEXT_SECONDARY, (notice.left, notice.bottom + 22), midleft=True)
+        card_h, gap = 92, 12
+        for i, opt in enumerate(scenario.options):
+            rect = pygame.Rect(notice.left, notice.bottom + 40 + i * (card_h + gap), CARD_W, card_h)
+            self._draw_option_card(rect, opt.key, f'"{opt.text}"', i, selected_index, plate="SENT")
+        self._draw_footer_prompt("PRESS 1, 2 OR 3 TO SEND A REPLY", selected_index is not None)
         return True
+
+    def _draw_lockscreen(self, offset: tuple[int, int], dimmed: bool) -> pygame.Rect:
+        """Draw the lock screen with the one notification on it and return the notification's rect."""
+        cx = self.width // 2 + offset[0]
+        top = self.CONTENT_TOP + offset[1]
+        self._draw_text("23:42", self.font_title, (150, 150, 150) if dimmed else (219, 219, 219), (cx, top + 12), center=True)
+        self._draw_text("Friday, September 19  •  Midterm Assessment Period", self.font_small, COLOR_TEXT_MUTED if dimmed else (140, 140, 140), (cx, top + 40), center=True)
+
+        # Status icons: signal bars and battery
+        stat_x = self.width - self.MARGIN - 86 + offset[0]
+        for bar in range(4):
+            bar_h = 4 + bar * 3
+            pygame.draw.rect(self.screen, (189, 189, 189), (stat_x + bar * 5, top + 18 - bar_h, 3, bar_h))
+        pygame.draw.rect(self.screen, (150, 150, 150), (stat_x + 30, top + 6, 22, 12), width=1, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TIMER_GREEN, (stat_x + 32, top + 8, 14, 8))
+        pygame.draw.rect(self.screen, (150, 150, 150), (stat_x + 52, top + 9, 2, 6))
+
+        notice = pygame.Rect(cx - CARD_W // 2, top + 62, CARD_W, 138)
+        self._draw_card(notice, border_color=COLOR_HAIRLINE, bg_color=(22, 22, 22) if dimmed else COLOR_CARD_BG)
+        self._draw_lockscreen_seal((notice.left + 36, notice.top + 34))
+        ink = (150, 150, 150) if dimmed else COLOR_TEXT_PRIMARY
+        self._draw_text("ACADEMIC SUPERVISOR", self.font_body, ink, (notice.left + 64, notice.top + 12))
+        self._draw_text("FACULTY PORTAL  •  MESSAGE", self.font_mono_small, (144, 144, 144), (notice.left + 64, notice.top + 38))
+        self._draw_text("now", self.font_small, COLOR_TEXT_SECONDARY, (notice.right - 20, notice.top + 26), midright=True)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE, (notice.left + 20, notice.top + 68), (notice.right - 20, notice.top + 68), 1)
+
+        # The remark, with the one word that carries it set apart in the info token
+        prefix, word, suffix = REMARK
+        line_y = notice.top + 102
+        body_ink = (130, 130, 130) if dimmed else (227, 227, 227)
+        lead = self._draw_text(prefix, self.font_body, body_ink, (notice.left + 24, line_y), midleft=True)
+        word_colour = self._mix(COLOR_ACCENT_CYAN, (22, 22, 22), 0.4) if dimmed else COLOR_ACCENT_CYAN
+        tag = self._draw_tag(word, (lead.right + 2, line_y), ink=word_colour, fill=(28, 28, 28), border=word_colour, font=self.font_lead)
+        self._draw_text(suffix, self.font_body, body_ink, (tag.right + 6, line_y), midleft=True)
+        return notice
+
+    def _draw_lockscreen_seal(self, center: tuple[int, int]) -> None:
+        """Draw the sender's neutral institutional seal."""
+        pygame.draw.circle(self.screen, (42, 42, 42), center, 18)
+        pygame.draw.circle(self.screen, (167, 167, 167), center, 18, width=2)
+        pygame.draw.circle(self.screen, (167, 167, 167), center, 14, width=1)
+        star = []
+        for point in range(10):
+            radius = 7.0 if point % 2 == 0 else 3.2
+            angle = -math.pi / 2 + point * (math.pi / 5)
+            star.append((center[0] + int(radius * math.cos(angle)), center[1] + int(radius * math.sin(angle))))
+        pygame.draw.polygon(self.screen, (167, 167, 167), star)
+
+    def _draw_post_wait_notification_stack(self, text: str, elapsed_fraction: float) -> None:
+        """Render the wait after a reply is sent: the same lock screen, the message unanswered, and no information."""
+        notice = self._draw_lockscreen((0, 0), dimmed=True)
+        sent = pygame.Rect(notice.right - 300, notice.bottom + 18, 300, 40)
+        pygame.draw.rect(self.screen, (40, 40, 40), sent, border_radius=0)
+        self._draw_text("Your reply  •  Sent", self.font_small, COLOR_TEXT_SECONDARY, (sent.left + 14, sent.centery), midleft=True)
+
+        modal = pygame.Rect(self.width // 2 - 330, notice.bottom + 96, 660, 132)
+        self._draw_card(modal, border_color=COLOR_ACCENT_CYAN, bg_color=COLOR_CARD_BG)
+        self._draw_spinner((modal.left + 58, modal.centery), 20, elapsed_fraction * 5.0)
+        self._draw_text(text, self.font_title, COLOR_TEXT_PRIMARY, (modal.left + 104, modal.top + 30), max_width=modal.width - 128)
+        self._draw_text("No reply yet. This will finish on its own.", self.font_small, COLOR_TEXT_SECONDARY, (modal.left + 104, modal.top + 78))
+        self._draw_text("PLEASE REMAIN STILL", self.font_small, (140, 140, 140), (self.width // 2, self.FOOTER_Y), center=True)

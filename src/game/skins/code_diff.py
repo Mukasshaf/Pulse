@@ -7,18 +7,37 @@ import pygame
 
 from src.game.constants import (
     COLOR_BG,
-    COLOR_CARD_BG,
     COLOR_HAIRLINE,
+    COLOR_SEMANTIC_WARNING,
     COLOR_TEXT_PRIMARY,
-    COLOR_TEXT_SECONDARY,
     COLOR_TIMER_AMBER,
-    COLOR_TIMER_GREEN,
-    COLOR_TIMER_RED,
 )
 from src.game.scenario_logic import BARTRunner, MISTRunner, RewardAccumulator
 from src.game.scenarios import Scenario
 from src.game.ui_components import UIComponents
 from src.game.ui_effects import UIEffectState
+
+GROUP_CODE: tuple[str, ...] = (
+    "class OptimizationEngine:",
+    "    def __init__(self, weights: list[float]):",
+    "        self.tensor_map = compute_latent_graph(weights)   # MATCH",
+    "        self.matrix_delta = decompose_svd_fast(weights)   # MATCH",
+    "        self.gradient_cache = [0.0] * len(weights)        # MATCH",
+    "    def step_optimizer(self, lr: float):",
+    "        return execute_forward_pass(self.tensor_map, lr)",
+    "        # End of implementation block",
+)
+SENIOR_CODE: tuple[str, ...] = (
+    "class LegacyPipelineRunner:",
+    "    def __init__(self, weights: list[float]):",
+    "        self.tensor_map = compute_latent_graph(weights)   # MATCH",
+    "        self.matrix_delta = decompose_svd_fast(weights)   # MATCH",
+    "        self.gradient_cache = [0.0] * len(weights)        # MATCH",
+    "    def run_iteration(self, rate: float):",
+    "        return execute_forward_pass(self.tensor_map, rate)",
+    "        # Archived under CC-BY-NC 2022",
+)
+MATCHED_LINES = range(2, 5)  # lines 03-05 of both panes
 
 
 class CodeDiffSkin(UIComponents):
@@ -36,168 +55,62 @@ class CodeDiffSkin(UIComponents):
         composure_fraction: float | None,
     ) -> bool:
         """Render code_diff simulation skin: dual-pane repository diff viewer with highlighted overlapping segments."""
-        vx, vy = effects.vibration_offset
-        jx, jy = effects.jitter_offset
-        ox = vx + jx
-        oy = vy + jy
+        ox = effects.vibration_offset[0] + effects.jitter_offset[0]
+        oy = effects.vibration_offset[1] + effects.jitter_offset[1]
+        content_w = self.width - 2 * self.MARGIN
+        banner = pygame.Rect(self.MARGIN + ox, self.CONTENT_TOP + oy, content_w, 44)
+        self._draw_diff_banner(banner, time_remaining_s)
 
-        # 1. Stakes Callout Top Banner
-        banner_w = self.width - 100
-        banner_h = 44
-        banner_rect = pygame.Rect(50 + ox, 90 + oy, banner_w, banner_h)
-        self._draw_card(banner_rect, border_color=COLOR_TIMER_AMBER, bg_color=COLOR_BG)
+        half_w = (content_w - 18) // 2
+        left_pane = pygame.Rect(banner.left, banner.bottom + 12, half_w, 300)
+        right_pane = pygame.Rect(left_pane.right + 18, left_pane.top, half_w, 300)
+        self._draw_diff_pane(left_pane, "YOUR GROUP'S SUBMISSION: src/core/engine.py", (214, 214, 214), GROUP_CODE)
+        self._draw_diff_pane(right_pane, "UNCREDITED ARCHIVE: repo_2022_grad/core.py (graduated senior)", COLOR_TIMER_AMBER, SENIOR_CODE)
 
-        # Warning icon/pulse: the caution yellow dims toward the canvas and back (about 0.5 Hz)
-        warn_pulse = (math.sin(time_remaining_s * 3.0) + 1.0) / 2.0
-        warn_col = self._mix(COLOR_TIMER_AMBER, COLOR_BG, 0.22 * (1.0 - warn_pulse))
-        tri_pts = [
-            (banner_rect.left + 24, banner_rect.centery - 10),
-            (banner_rect.left + 14, banner_rect.centery + 8),
-            (banner_rect.left + 34, banner_rect.centery + 8),
-        ]
-        pygame.draw.polygon(self.screen, warn_col, tri_pts)
-        self._draw_text("!", self.font_small, (20, 20, 20), (banner_rect.left + 24, banner_rect.centery + 1), center=True)
-        self._draw_text("INTEGRITY CHECK: 38% UNATTRIBUTED OVERLAP IDENTIFIED", self.font_body, warn_col, (banner_rect.left + 46, banner_rect.centery), midleft=True)
-        self._draw_text("[PLAGIARISM FLAGGED: SENIOR REPO MATCH]", self.font_small, COLOR_TIMER_RED, (banner_rect.right - 20, banner_rect.centery), midright=True)
-
-        # 2. Dual-Pane Code Diff Container
-        diff_top = 144 + oy
-        diff_h = 320
-        gap = 18
-        half_w = (banner_w - gap) // 2
-
-        left_diff = pygame.Rect(50 + ox, diff_top, half_w, diff_h)
-        right_diff = pygame.Rect(50 + ox + half_w + gap, diff_top, half_w, diff_h)
-
-        # Pane Header Bars
-        pane_hdr_h = 32
-        left_hdr = pygame.Rect(left_diff.left, left_diff.top, half_w, pane_hdr_h)
-        right_hdr = pygame.Rect(right_diff.left, right_diff.top, half_w, pane_hdr_h)
-
-        # Left Diff Pane (Current Project Submission)
-        pygame.draw.rect(self.screen, (24, 24, 24), left_diff, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_HAIRLINE, left_diff, width=1, border_radius=0)
-        pygame.draw.rect(self.screen, (36, 36, 36), left_hdr, border_top_left_radius=0, border_top_right_radius=0)
-        self._draw_text("CURRENT PROJECT SUBMISSION: src/core/engine.py (Your Group)", self.font_small, (214, 214, 214), (left_hdr.left + 14, left_hdr.centery), midleft=True)
-
-        # Right Diff Pane (Uncredited Archived Repository)
-        pygame.draw.rect(self.screen, (24, 24, 24), right_diff, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_HAIRLINE, right_diff, width=1, border_radius=0)
-        pygame.draw.rect(self.screen, (36, 36, 36), right_hdr, border_top_left_radius=0, border_top_right_radius=0)
-        self._draw_text("UNCREDITED ARCHIVED REPOSITORY: repo_2022_grad/core.py (Senior Alumni)", self.font_small, COLOR_TIMER_AMBER, (right_hdr.left + 14, right_hdr.centery), midleft=True)
-
-        # Code lines to render
-        left_code = [
-            ("01", "class OptimizationEngine:"),
-            ("02", "    def __init__(self, weights: list[float]):"),
-            ("03", "        self.tensor_map = compute_latent_graph(weights)   # MATCH"),
-            ("04", "        self.matrix_delta = decompose_svd_fast(weights)   # MATCH"),
-            ("05", "        self.gradient_cache = [0.0] * len(weights)        # MATCH"),
-            ("06", "    def step_optimizer(self, lr: float):"),
-            ("07", "        return execute_forward_pass(self.tensor_map, lr)"),
-            ("08", "        # End of implementation block"),
-        ]
-
-        right_code = [
-            ("01", "class LegacyPipelineRunner:"),
-            ("02", "    def __init__(self, weights: list[float]):"),
-            ("03", "        self.tensor_map = compute_latent_graph(weights)   # MATCH"),
-            ("04", "        self.matrix_delta = decompose_svd_fast(weights)   # MATCH"),
-            ("05", "        self.gradient_cache = [0.0] * len(weights)        # MATCH"),
-            ("06", "    def run_iteration(self, rate: float):"),
-            ("07", "        return execute_forward_pass(self.tensor_map, rate)"),
-            ("08", "        # Archived under CC-BY-NC 2022"),
-        ]
-
-        # Overlapping match lines 03-05 sit on a translucent caution-yellow band with a solid left rule
-        line_start_y = left_diff.top + pane_hdr_h + 8
-        line_h = 32
-        match_fill = (*COLOR_TIMER_AMBER, 50)
-        match_edge = self._mix(COLOR_TIMER_AMBER, COLOR_BG, 0.45)
-        for pane, code_lines in ((left_diff, left_code), (right_diff, right_code)):
-            for l_idx, (num, code_text) in enumerate(code_lines):
-                ly = line_start_y + l_idx * line_h
-                is_match = l_idx in (2, 3, 4)
-                if is_match:
-                    match_rect = pygame.Rect(pane.left + 4, ly - 2, half_w - 8, line_h - 2)
-                    alpha_box = pygame.Surface((match_rect.width, match_rect.height), pygame.SRCALPHA)
-                    pygame.draw.rect(alpha_box, match_fill, (0, 0, match_rect.width, match_rect.height), border_radius=0)
-                    self.screen.blit(alpha_box, match_rect.topleft)
-                    pygame.draw.rect(self.screen, match_edge, match_rect, width=1, border_radius=0)
-                    pygame.draw.line(self.screen, COLOR_TIMER_AMBER, (match_rect.left, match_rect.top), (match_rect.left, match_rect.bottom), 3)
-
-                self._draw_text(num, self.font_mono_small, (114, 114, 114), (pane.left + 14, ly + 4))
-                code_col = COLOR_TEXT_PRIMARY if is_match else (189, 189, 189)
-                self._draw_text(code_text, self.font_mono_small, code_col, (pane.left + 46, ly + 4), max_width=half_w - 60)
-
-        # 3. Decision Options: Three Cards Below
-        cards_y = diff_top + diff_h + 14
-        card_w = (banner_w - 2 * 20) // 3
-        card_h = 160
-
-        diff_opts = [
-            (
-                1,
-                "Remove Borrowed Sections",
-                "Remove Sections / Accept Delay",
-                "Scrub senior code & accept timeline delay before submission.",
-                "[ SECTIONS REMOVED // TIMELINE HIT ]",
-                COLOR_TIMER_GREEN,
-                (32, 32, 32),
-            ),
-            (
-                2,
-                "Keep & Add Acknowledgement",
-                "Credit Source / Integrity Risk",
-                "Add formal credit in comments. Submits on time; board reviews.",
-                "[ TIMELINE KEPT // AUDIT RISK ]",
-                COLOR_TIMER_AMBER,
-                (33, 33, 33),
-            ),
-            (
-                3,
-                "Contact Senior for Consent",
-                "Formal Permission / Uncertainty",
-                "Request authorization from alumni. Submissions frozen pending response.",
-                "[ FORMAL CONSENT // UNCERTAIN ]",
-                COLOR_TEXT_PRIMARY,
-                (27, 27, 27),
-            ),
-        ]
-
-        for i, (key, title, subtitle, desc, tag, accent_col, bg_col) in enumerate(diff_opts):
-            cx = 50 + ox + i * (card_w + 20)
-            c_rect = pygame.Rect(cx, cards_y, card_w, card_h)
-
-            is_sel = (selected_index == i)
-            border_col = accent_col if is_sel else COLOR_HAIRLINE
-            card_bg = bg_col if is_sel else COLOR_CARD_BG
-            self._draw_card(c_rect, border_color=border_col, bg_color=card_bg)
-
-            # Key Badge
-            k_badge = pygame.Rect(c_rect.left + 14, c_rect.top + 14, 32, 32)
-            self._draw_key_badge(k_badge, str(key), selected=is_sel)
-
-            self._draw_text(title, self.font_body, accent_col if is_sel else COLOR_TEXT_PRIMARY, (k_badge.right + 12, c_rect.top + 12))
-            self._draw_text(subtitle, self.font_small, (160, 160, 160), (k_badge.right + 12, c_rect.top + 34))
-
-            # Description wrapped
-            text_rect = pygame.Rect(c_rect.left + 14, c_rect.top + 58, c_rect.width - 28, 55)
-            self._draw_wrapped_text(desc, self.font_small, COLOR_TEXT_SECONDARY, text_rect, spacing=4, center_v=True)
-
-            # Tag pill
-            tag_rect = pygame.Rect(c_rect.left + 14, c_rect.bottom - 30, c_rect.width - 28, 22)
-            pygame.draw.rect(self.screen, (32, 32, 32), tag_rect, border_radius=0)
-            pygame.draw.rect(self.screen, accent_col, tag_rect, width=1, border_radius=0)
-            self._draw_text(tag, self.font_small, accent_col, tag_rect.center, center=True)
-
-        # Bottom Prompt
-        self._draw_text(
-            "PRESS KEY [1], [2], OR [3] TO COMMIT CODE INTEGRITY DECISION",
-            self.font_small,
-            (140, 140, 140),
-            (self.width // 2, self.height - 24),
-            center=True,
-        )
-
+        # Options: the action and its trade-off as logged; no option is colour-graded
+        card_w = (content_w - 2 * 20) // 3
+        for i, opt in enumerate(scenario.options):
+            card = pygame.Rect(banner.left + i * (card_w + 20), left_pane.bottom + 14, card_w, 204)
+            style = self._draw_option_frame(card, i, selected_index)
+            badge = pygame.Rect(card.left + 16, card.top + 16, 36, 36)
+            self._draw_key_badge(badge, str(opt.key), selected=style.chosen, enabled=not style.passed)
+            if style.chosen:
+                self._draw_tag("COMMITTED", (card.right - 16, badge.centery), anchor="midright", ink=COLOR_BG, fill=COLOR_TEXT_PRIMARY)
+            action, trade_off = self._split_option(opt.text)
+            end_y = self._draw_wrapped_text(action, self.font_body, style.ink, pygame.Rect(card.left + 16, badge.bottom + 14, card.width - 32, 62), spacing=2)
+            self._draw_wrapped_text(trade_off, self.font_small, style.sub_ink, pygame.Rect(card.left + 16, end_y + 8, card.width - 32, card.bottom - end_y - 20), spacing=3)
+        self._draw_footer_prompt("PRESS 1, 2 OR 3 TO COMMIT YOUR DECISION", selected_index is not None)
         return True
+
+    def _draw_diff_banner(self, banner: pygame.Rect, time_remaining_s: float) -> None:
+        """Draw the integrity-check banner and the submission deadline that keeps counting down."""
+        self._draw_card(banner, border_color=COLOR_TIMER_AMBER, bg_color=COLOR_BG)
+        # The caution yellow dims toward the canvas and back at about 0.5 Hz
+        warn = self._mix(COLOR_TIMER_AMBER, COLOR_BG, 0.22 * (1.0 - (math.sin(time_remaining_s * 3.0) + 1.0) / 2.0))
+        pygame.draw.polygon(self.screen, warn, [(banner.left + 24, banner.centery - 10), (banner.left + 14, banner.centery + 8), (banner.left + 34, banner.centery + 8)])
+        self._draw_text("!", self.font_small, (20, 20, 20), (banner.left + 24, banner.centery + 1), center=True)
+        self._draw_text("INTEGRITY CHECK: 38% OVERLAP WITH AN UNCREDITED SOURCE", self.font_body, warn, (banner.left + 46, banner.centery), midleft=True)
+        seconds = int(time_remaining_s) % 60
+        self._draw_text(f"SUBMISSION DEADLINE IN 2d 06:14:{seconds:02d}", self.font_mono_small, COLOR_SEMANTIC_WARNING, (banner.right - 20, banner.centery), midright=True)
+
+    def _draw_diff_pane(self, pane: pygame.Rect, title: str, title_colour: tuple[int, int, int], code: tuple[str, ...]) -> None:
+        """Draw one code pane; the matched lines sit on a translucent caution-yellow band with a solid left rule."""
+        pygame.draw.rect(self.screen, (24, 24, 24), pane, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, pane, width=1, border_radius=0)
+        header = pygame.Rect(pane.left, pane.top, pane.width, 32)
+        pygame.draw.rect(self.screen, (36, 36, 36), header, border_radius=0)
+        self._draw_text(title, self.font_small, title_colour, (header.left + 14, header.centery), midleft=True, max_width=pane.width - 28)
+
+        line_h = 32
+        for row, text in enumerate(code):
+            line_y = header.bottom + 8 + row * line_h
+            matched = row in MATCHED_LINES
+            if matched:
+                band = pygame.Rect(pane.left + 4, line_y - 2, pane.width - 8, line_h - 2)
+                wash = pygame.Surface(band.size, pygame.SRCALPHA)
+                wash.fill((*COLOR_TIMER_AMBER, 50))
+                self.screen.blit(wash, band.topleft)
+                pygame.draw.rect(self.screen, self._mix(COLOR_TIMER_AMBER, COLOR_BG, 0.45), band, width=1, border_radius=0)
+                pygame.draw.line(self.screen, COLOR_TIMER_AMBER, band.topleft, band.bottomleft, 3)
+            self._draw_text(f"{row + 1:02d}", self.font_mono_small, (114, 114, 114), (pane.left + 14, line_y + 4))
+            self._draw_text(text, self.font_mono_small, COLOR_TEXT_PRIMARY if matched else (189, 189, 189), (pane.left + 46, line_y + 4), max_width=pane.width - 60)

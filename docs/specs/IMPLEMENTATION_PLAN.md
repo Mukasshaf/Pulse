@@ -469,8 +469,8 @@ uv run python -c "import pygame; import numpy; print('OK')"
 Each task below was verified with the same three commands, all clean at the end of the round:
 
 ```powershell
-uv run pytest -v                      # 107 passed
-uv run mypy src/ tests/ --strict      # no issues in 76 source files
+uv run pytest -v                      # 114 passed
+uv run mypy src/ tests/ --strict      # no issues in 77 source files
 uv run ruff check .                   # all checks passed
 ```
 
@@ -506,3 +506,8 @@ Exposure floors (commit-and-hold, priming floor), static baseline, honest compos
 
 ### Task 21 — Agent files and documentation (ADR-B8)
 **Output:** `CLAUDE.md` rewritten, `GEMINI.md` created (identical content); all specs in `docs/` updated and mirrored to the Obsidian vault; ADR-B1…B8 in `Decisions.md`.
+
+### Task 22 — UI review (ADR-B9)
+**Output:** `immersive_simulation_design.md` revision 2 and the build brought in line with it: a shared interface kit in `ui_components.py` (`_draw_option_frame`, `_draw_option_card`, `_draw_tag`, `_draw_footer_prompt`, `_draw_silhouette`, `_draw_window_chrome`, `_draw_spinner`, `_draw_progress_line`); all 14 skins rebuilt on it and split into helpers of at most 60 lines; wait scenes moved into their skins; wrapper screens on one heading plate; briefing headed by `SETTING_LABELS`; four scenarios retitled; construct and verdict labels removed from options and waits.
+**Checkpoint:** 7 new tests (`test_ui_rules.py`, `test_participant_facing_text_has_no_construct_language`, `test_option_frame_marks_the_choice_in_white_and_keeps_the_accent_as_a_rule`); 94 frames rendered and inspected before and after; three full headless sessions with rendering on (15,396 frames).
+**Not done:** vibration is still not wired in the engine; exam-hall flicker and pencil ambience are not built; risk colour on the four risk skins is still an open design question.

@@ -127,7 +127,7 @@ The screen shows a simulated group chat with **4 friend avatars**, each displayi
 - **Option 1 (Key 1):** Agree — share it *(conforming)*
 - **Option 2 (Key 2):** Disagree — refuse and ask others to delete it *(dissenting)*
 
-A small label reads: *"Your response is visible to all group members."*
+A small label reads: *"Everyone in this group will see your reply."*
 
 **Stress mechanics:**
 - The unanimity of the group is critical — Asch showed that even one ally eliminates conformity pressure. All 4 must agree.
@@ -142,7 +142,7 @@ Both outcomes carry negative implications — there's no "safe" choice.
 
 ---
 
-### Scenario B: "Unfair Team Blame" — Factor: Accountability Pressure + Conformity by Default
+### Scenario B: "Team Project Review" (was "Unfair Team Blame") — Factor: Accountability Pressure + Conformity by Default
 
 **Paradigm basis:** Taboo trade-off paradigm (Tetlock et al., 2000) — forced attribution of blame violates social fairness norms.
 
@@ -177,7 +177,7 @@ Measures **self-regulation and executive control** — the tension between the "
 | `rmssd` / `sdnn` | ↓ Sustained suppression during wait | Active self-regulation consumes vagal resources |
 | `mean_hr` | Slight ↑ | Approach-avoidance conflict |
 
-### Scenario A: "Instant Loot vs. Multiplier Trap" — Factor: Visible Temptation + Risk of Total Loss
+### Scenario A: "The Reward Chest" (was "Instant Loot vs. Multiplier Trap") — Factor: Visible Temptation + Risk of Total Loss
 
 **Paradigm basis:** Real-time waiting task / digital Marshmallow Test (McGuire & Kable, 2012, *PLOS ONE*)
 
@@ -185,10 +185,10 @@ Measures **self-regulation and executive control** — the tension between the "
 > *"You've unlocked a reward chest. You can claim it now for a small payout, or wait as the value multiplies. But the chest is unstable — it could collapse at any moment, and you'd lose everything."*
 
 **Decision phase (45s):**
-The screen shows a **visually accumulating reward counter** (a progress bar that fills and a number that climbs). Two buttons are permanently available:
+The screen shows a **visually accumulating reward counter** (a progress bar that fills and a number that climbs). Two cards are permanently on screen:
 
 - **Key 1: "CLAIM NOW"** — locks in the current value immediately
-- **Key 2: "KEEP WAITING"** — continues accumulation but risk increases
+- **"KEEP WAITING" (no key)** — accumulation continues and risk increases for as long as nothing is pressed. Waiting is the passive default of a real-time waiting task; the engine does not act on Key 2 in this scenario, so the card carries no key prompt (ADR-B9)
 
 The reward counter visibly accelerates (creating increasing temptation), and a subtle **instability indicator** (a slight screen vibration that intensifies over time, ≤2px and ≤2Hz) signals growing risk of collapse. The actual collapse point is randomized between 20–40 seconds. A claim or a collapse is logged at once, and the resulting screen is held until the 45s timer expires (C1).
 
@@ -315,7 +315,7 @@ Produces stress through **moral-cognitive conflict** — competing ethical princ
 | `rmssd` | ↓ Suppressed during deliberation | Executive function engagement draws vagal resources |
 | Response time | ↑↑ Significantly longer than non-moral decisions | Genuine internal conflict — log this as `response_time_ms` |
 
-### Scenario A: "Portal Access Dilemma" — Factor: Personal Loyalty vs. Institutional Rules
+### Scenario A: "Portal Lockout" (was "Portal Access Dilemma") — Factor: Personal Loyalty vs. Institutional Rules
 
 **Paradigm basis:** Personal moral dilemma (Greene et al., 2001) — participant is directly responsible for the consequence.
 
@@ -400,7 +400,7 @@ Deliberately unresolved. The outcome is NEVER revealed during this scenario — 
 
 ---
 
-### Scenario B: "Ambiguous Feedback Before Finals" — Factor: Evaluative Uncertainty
+### Scenario B: "A Remark Before Finals" (was "Ambiguous Feedback Before Finals") — Factor: Evaluative Uncertainty
 
 **Paradigm basis:** Ambiguous feedback + uncertain threat (Grillon et al., 2004; de Berker et al., 2016)
 

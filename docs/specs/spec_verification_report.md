@@ -207,6 +207,6 @@ Cross-document consistency for the values changed in this round:
 | BART pacing | 1.5s cooldown (§5 Rule 3) | `BART_PUMP_COOLDOWN_MS = 1500` | B-07…B-09 | "PUBLISHING POST..." | 1500 |
 | MIST adaptation | 8s start, ±10% per 2-streak, 3–12s (§5 Rule 3) | `MIST_ITEM_LIMIT_*`, `MIST_ADAPT_*` | M-07…M-11 | same | same |
 | Palette | §6.1 token table | §7 colour block | §2.11 | palette map | `constants.py` |
-| Test count | 104 game tests in 12 modules | — | 107 total | — | `uv run pytest`: 107 passed |
+| Test count | 111 game tests in 13 modules | — | 114 total | — | `uv run pytest`: 114 passed |
 
 Known remaining mismatches between the standards and the code are listed in ARCHITECTURE_SPEC §7.3 (function length; one 542-line validation script).

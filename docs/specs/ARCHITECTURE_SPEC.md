@@ -85,7 +85,7 @@ Pulse/                                    # Project root
 │
 ├── tests/
 │   ├── conftest.py                       # Headless SDL drivers, shared fixtures
-│   ├── game/                             # 12 test modules, 104 tests (see TEST_CRITERIA_AND_EDGE_CASES.md)
+│   ├── game/                             # 13 test modules, 111 tests (see TEST_CRITERIA_AND_EDGE_CASES.md)
 │   └── pipeline/                         # 3 placeholder tests
 │
 ├── validation/                           # Standalone M2 validation suite (Mukasshaf)
@@ -215,18 +215,25 @@ scenario_logic.py
 
 ui.py — class UIRenderer(UIDomainSkins, UIScreens, UIPostWait)   (facade; the only UI import site)
   │
-  ├── ui_core.py        UIRendererCore: fonts (exact Segoe UI / Consolas files), _draw_text(max_width=),
+  ├── ui_core.py        UIRendererCore: fonts (exact Segoe UI / Consolas files), the layout grid
+  │                     (MARGIN, CONTENT_TOP, FOOTER_Y), _draw_text(max_width=), _wrap_lines,
   │                     _draw_wrapped_text (same-family downscale, ellipsis), _draw_card, _ink_for,
   │                     _mix(color, toward, amount) — blends a palette token toward a neutral, hue unchanged
-  ├── ui_components.py  UIComponents: _draw_key_badge (neutral key prompt, inverted once chosen),
-  │                     _draw_compass, draw_peer_average_bar, draw_instability_gauge, draw_team_chat,
-  │                     draw_evaluator_panel, draw_composure_bar (fraction=None → honest STANDBY state)
-  ├── ui_screens.py     UIScreens: draw_id_input, draw_baseline (static fixation cross, no paced breathing),
-  │                     draw_priming, draw_question_popup, draw_feedback, draw_rest, draw_debrief
-  ├── ui_post_wait.py   UIPostWait: draw_post_wait
+  ├── ui_components.py  UIComponents: the shared interface kit — _draw_key_badge (neutral key prompt,
+  │                     inverted once chosen), _draw_option_frame / _draw_option_card (one option plate:
+  │                     white = chosen, dimmed = passed over, optional left accent rule), _split_option,
+  │                     _draw_tag, _draw_footer_prompt, _draw_silhouette, _draw_window_chrome,
+  │                     _draw_spinner, _draw_progress_line — plus _draw_compass, draw_composure_bar
+  │                     (fraction=None → honest STANDBY state) and the fallback widgets
+  │                     draw_peer_average_bar, draw_instability_gauge, draw_team_chat, draw_evaluator_panel
+  ├── ui_screens.py     UIScreens: SETTING_LABELS, _draw_plate, draw_id_input, draw_baseline (static fixation
+  │                     cross, no paced breathing), draw_priming, draw_question_popup, draw_feedback,
+  │                     draw_rest, draw_debrief
+  ├── ui_post_wait.py   UIPostWait(DocumentWorkspaceSkin, ForkMapSkin, NotificationStackSkin): draw_post_wait
+  │                     picks the skin's own wait scene (_draw_post_wait_<name>) or a plain fallback card
   ├── ui_domains.py     UIDomainSkins: draw_decision → _render_skin(scenario.skin) or a skinless fallback
   │                     (_draw_standard_decision, _draw_mist_decision, _draw_bart_decision, _draw_reward_decision)
-  └── skins/*.py        14 classes, one `_draw_skin_<name>` method each; composed by UIDomainSkins
+  └── skins/*.py        14 classes: `_draw_skin_<name>` plus helpers of at most 60 lines; composed by UIDomainSkins
 
 ui_effects.py
   │
@@ -496,7 +503,7 @@ Rules, each enforced by `tests/game/test_palette.py`:
 2. **Derived shades keep the token's hue.** `_mix(token, neutral, amount)` blends toward the canvas or toward white; blending with a grey cannot change hue, so the result is still on-palette.
 3. **Semantic gradients are the one sanctioned blend between tokens:** the timer bar and the composure bar (green → yellow → Rosso) and the reward-chest glow (cyan → yellow → Rosso).
 4. **Key prompts are neutral:** `_draw_key_badge()` draws a canvas plate with white ink and a Grigio border. A chosen key inverts to a white plate with canvas ink. A key that is temporarily inert (BART cooldown) is drawn muted.
-5. **Selection is never Rosso.** On plain multiple-choice skins the chosen card gets a white border; risk-coded skins keep the option's own semantic accent.
+5. **Selection is white, on every skin (ADR-B9).** The shared option plate (`_draw_option_frame`) gives the chosen option a white border, an inverted key badge and a white state plate, and dims the options passed over. A risk-coded skin shows an option's described risk as a 4px left accent rule, drawn the same before and after the choice; dilemma and social skins have no option colour.
 6. **A rendered frame contains no foreign hue.** Every chromatic pixel of all 14 skins and every non-decision screen must carry a token hue or lie on a sanctioned gradient.
 
 ---
@@ -547,9 +554,28 @@ An independent audit of `src/game/` raised 7 blockers (B1–B7) and 14 cautions 
 |---|---|
 | Hardware-in-the-loop run | `SerialBridge` is verified against simulated ports and recorded rows only. It has not been run against a physical ESP32, and fullscreen and audio output have not been exercised on the study machine. |
 | Composure false-trigger rate | A headless full-protocol session driven through `main.py` with a replayed recording produced the expected `DECEPTION_TRIGGER` events during simulated tremor (one per 5 s cooldown). It also produced about one brief drop per 45 s window on *stationary* resting motion: the μ + 1.5σ threshold sits near the 93rd percentile of resting variance, and consecutive 4 Hz polls of a 1 s window overlap by 75 %, so three in a row above threshold is not rare. The parameters are a locked decision; measure the rate on real resting recordings before reading `DECEPTION_TRIGGER` counts as tremor events. |
-| Function length (CODING_STANDARDS §8.1) | 19 functions exceed 60 lines; 15 are the `_draw_skin_*` methods (134–304 lines). Decomposing them needs per-skin layout objects and is a separate piece of work. |
+| Function length (CODING_STANDARDS §8.1) | 2 functions exceed 60 lines: `main._build_parser` (71) and `EngineBase.__init__` (65). The 15 `_draw_skin_*` methods and `draw_post_wait` were decomposed in the UI review (§7.4). |
 | Resolution scaling (audit C12) | Layout assumes 1280×720. Fullscreen uses `pygame.SCALED`, so it is scaled as a whole rather than re-laid-out. |
 | Reaction-time resolution (audit C4) | Latencies are quantised to the 60 FPS event poll (≤16.7 ms). |
 | `batch_comparison.py` feature list | `FEATURE_COLS` lists `scl_slope`, which `features.py` does not produce, so the script raises `KeyError` on current feature files. Left for the pipeline owner: drop the column or add the feature. |
 | `validation/run_m2_validation_v2.py` | 542 lines (archived M2 evidence script, outside `src/`). |
-| Option colour coding | Risk-coded skins still mark options green / yellow / red. That is on-palette, but it is a valence cue; whether it biases choice is an experimental-design question, not a palette one. |
+| Option colour coding | Narrowed by the UI review (§7.4): dilemma and social skins no longer colour their options, and no skin marks the chosen option in colour. The four risk skins (tournament, analytics, chest, editor) still show an option's described risk as a green / yellow / Rosso left rule. That is on-palette, but it is a valence cue; whether it biases choice is an experimental-design question, not a palette one. |
+| Screen vibration | `ScreenVibration` is constructed by the engine and the skins apply `vibration_offset`, but nothing ever sets it, so the reward chest does not shake in a session. No commit has wired it. Wire it, or remove it from §3 and §6. |
+| Unbuilt design items | Exam-hall pencil ambience and brightness flicker, chest growth to 1.6×: see "Specified, Not Built" in `immersive_simulation_design.md`. |
+
+### 7.4 UI review (ADR-B9)
+
+All 14 skins and every wrapper screen were rendered headlessly in their idle, committed and final-seconds states and read against `immersive_simulation_design.md`. The review record in that document lists each finding. In summary:
+
+| Area | Change | Where |
+|---|---|---|
+| Construct leaks (second pass on audit B5) | Briefing and popup are headed by the skin's setting instead of the domain name; four titles that named the paradigm or judged the situation were retitled; stance and verdict tags were removed from option cards; manipulation statements were removed from skins and wait screens | `ui_screens.py` `SETTING_LABELS`, `scenarios.py`, `skins/`, `ui_post_wait.py` |
+| Option plate | One shared plate for every option: white marks the choice, passed-over options dim, described risk is a left rule, no colour on dilemma skins. Options draw the registry text, so the screen shows what `choice_data` logs | `ui_components.py` `_draw_option_frame`, `_draw_option_card`, `_split_option` |
+| Held state | Footer changes to "RESPONSE RECORDED • PLEASE REMAIN STILL UNTIL THE TIMER ENDS"; the chest has a claimed state and a legible collapse; the suspension notice replaces the dashboard | `_draw_footer_prompt`, `skins/reward_crate.py`, `skins/social_analytics.py` |
+| Honest prompts | The chest's passive "keep waiting" has no key badge (the engine ignores key 2 there); wait screens never state their length | `skins/reward_crate.py`, `skins/*`, `ui_post_wait.py` |
+| Legibility | Exam wrong mark moved off the question; overlaps fixed on the hearing, Kanban and document-wait screens; one layout grid (50px margins, content from y=96, footer at y=704) | `skins/`, `ui_core.py` |
+| Design items that were specified but missing | Staggered chat messages, notification pulse, portal inactivity entry, diff deadline counter, Kanban participant entry, clock pendulum | `skins/` |
+| Wrapper screens | Setup, baseline, briefing, popup, outcome, rest and debrief share one heading plate; `draw_rest` takes an optional `total_s` for its progress line | `ui_screens.py`, `engine.py` `_render()` |
+| Function length | Every skin is decomposed into helpers of at most 60 lines (`skins/` 3,127 → 1,725 lines) | `skins/` |
+
+Unchanged: scenario IDs, domains, option text and keys, consequences, timing, the event log, the engine state machine, the sensor bridge, and every effect limit. Verified by 114 tests (7 new), three full headless sessions driven through the engine with rendering on (15,396 frames, no exception), and a per-frame visual check.

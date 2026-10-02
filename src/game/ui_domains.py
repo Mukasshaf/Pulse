@@ -68,21 +68,17 @@ class UIDomainSkins(
         self.screen.fill(COLOR_BG)
         jx, jy = effects.jitter_offset
 
-        # Header bar
-        self._draw_text(scenario.title, self.font_title, COLOR_TEXT_PRIMARY, (50 + jx, 30 + jy))
-
-        # Hold TAB / Q question popup hint pill
-        hint_rect = pygame.Rect(self.width - 410 + jx, 28 + jy, 230, 28)
-        pygame.draw.rect(self.screen, (32, 32, 32), hint_rect, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_HAIRLINE_SUBTLE, hint_rect, width=1, border_radius=0)
-        self._draw_text("[ HOLD TAB: VIEW QUESTION ]", self.font_mono_small, COLOR_ACCENT_CYAN, hint_rect.center, center=True)
+        # Header: scenario title on the left, the re-read control on the right edge of the content grid
+        self._draw_text(scenario.title, self.font_title, COLOR_TEXT_PRIMARY, (self.MARGIN + jx, 30 + jy))
+        hint = self._draw_text("HOLD TO RE-READ THE BRIEFING", self.font_mono_small, COLOR_TEXT_SECONDARY, (self.width - self.MARGIN + jx, 48 + jy), midright=True)
+        self._draw_tag("TAB", (hint.left - 10, 48 + jy), anchor="midright", ink=COLOR_TEXT_PRIMARY, fill=COLOR_BG, border=COLOR_TEXT_SECONDARY)
 
         # Timer bar (sharp automotive precision)
         frac = max(0.0, time_remaining_s / float(scenario.decision_duration_s))
-        bar_w = int((self.width - 100) * frac)
-        pygame.draw.rect(self.screen, (36, 36, 36), (50, 75, self.width - 100, 10), border_radius=0)
-        pygame.draw.rect(self.screen, effects.timer_bar_color, (50, 75, bar_w, 10), border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_HAIRLINE, (50, 75, self.width - 100, 10), width=1, border_radius=0)
+        track = pygame.Rect(self.MARGIN, 75, self.width - 2 * self.MARGIN, 10)
+        pygame.draw.rect(self.screen, (36, 36, 36), track, border_radius=0)
+        pygame.draw.rect(self.screen, effects.timer_bar_color, (track.left, track.top, int(track.width * frac), track.height), border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_HAIRLINE, track, width=1, border_radius=0)
 
         rendered = self._render_skin(
             scenario,
@@ -128,16 +124,7 @@ class UIDomainSkins(
         for i, opt in enumerate(opts):
             y = start_y + i * (card_h + gap)
             rect = pygame.Rect(60 + jx, y + jy, self.width - 120, card_h)
-            is_sel = selected_index == i
-            # The participant's own choice is marked in white; Rosso is reserved for stress triggers
-            border = COLOR_TEXT_PRIMARY if is_sel else (COLOR_HAIRLINE_SUBTLE if selected_index is not None else None)
-            self._draw_card(rect, border, COLOR_CARD_BG)
-
-            key_badge = pygame.Rect(rect.left + 16, rect.centery - 18, 36, 36)
-            self._draw_key_badge(key_badge, str(opt.key), selected=is_sel)
-
-            text_rect = pygame.Rect(key_badge.right + 20, rect.top + 10, rect.width - 90, rect.height - 20)
-            self._draw_wrapped_text(opt.text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=4)
+            self._draw_option_card(rect, opt.key, opt.text, i, selected_index)
 
     def _draw_mist_decision(self, runner: MISTRunner, effects: UIEffectState, selected_index: int | None) -> None:
         """Render MIST arithmetic layout with peer progress bar."""

@@ -7,6 +7,7 @@ from src.game.constants import (
     BASELINE_DURATION_S,
     FAST_BASELINE_DURATION_S,
     FPS,
+    INTRA_DOMAIN_REST_S,
     EngineState,
 )
 from src.game.engine_input import EngineInputMixin
@@ -68,7 +69,8 @@ class GameEngine(EngineInputMixin, EngineTimerMixin):
         elif self._current_state == EngineState.FEEDBACK:
             self.renderer.draw_feedback(self._consequence_text, self._state_elapsed_ms / 1000.0)
         elif self._current_state in (EngineState.INTRA_REST, EngineState.INTER_REST):
-            self.renderer.draw_rest(self._current_state == EngineState.INTER_REST, rem_s)
+            is_inter = self._current_state == EngineState.INTER_REST
+            self.renderer.draw_rest(is_inter, rem_s, self.config.inter_domain_rest_s if is_inter else float(INTRA_DOMAIN_REST_S))
         elif self._current_state == EngineState.DEBRIEF:
             dur = (self._now_ms() - self.config.session_start_unix_ts_ms) / 1000.0
             self.renderer.draw_debrief(dur, self._scenarios_completed)

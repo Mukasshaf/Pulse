@@ -10,182 +10,187 @@ from src.game.constants import (
     COLOR_HAIRLINE_SUBTLE,
     COLOR_REST_GRADIENT_BOTTOM,
     COLOR_REST_GRADIENT_TOP,
+    COLOR_SEMANTIC_WARNING,
+    COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
     COLOR_TIMER_AMBER,
     COLOR_TIMER_RED,
+    DEFAULT_CONSEQUENCE_DURATION_S,
     ScenarioType,
 )
 from src.game.scenarios import Scenario
 from src.game.ui_components import UIComponents
 
+# Where each scenario takes place, shown on the briefing in place of the research domain name.
+# The domain is a construct label and stays in the registry and the logs.
+SETTING_LABELS: dict[str, str] = {
+    "exam_hall": "EXAM HALL",
+    "misconduct_hearing": "INTEGRITY BOARD",
+    "group_chat": "CLASS GROUP CHAT",
+    "team_kanban": "SPRINT REVIEW",
+    "reward_crate": "REWARD VAULT",
+    "document_workspace": "ASSIGNMENT EDITOR",
+    "tournament_bracket": "TOURNAMENT LOBBY",
+    "social_analytics": "CREATOR STUDIO",
+    "portal_log": "CAMPUS IT PORTAL",
+    "code_diff": "CODE REVIEW",
+    "fork_map": "ROUTE PLANNER",
+    "notification_stack": "LOCK SCREEN",
+    "defense_stage": "REVIEW PANEL",
+    "classroom_critique": "CLASSROOM",
+}
+PLATE_LEFT = 140
+PLATE_WIDTH = 1000
+
 
 class UIScreens(UIComponents):
     """ID input, baseline, priming, briefing popup, feedback, rest, and debrief screens."""
 
+    def _draw_plate(self, label: str, title: str, top: int, title_font: pygame.font.Font | None = None) -> int:
+        """Draw the shared screen heading (small label, title, hairline) and return the y below the hairline."""
+        self._draw_text(label, self.font_mono_small, COLOR_ACCENT_CYAN, (PLATE_LEFT, top), midleft=True)
+        heading = self._draw_text(title, title_font if title_font is not None else self.font_hero, COLOR_TEXT_PRIMARY, (PLATE_LEFT, top + 16), max_width=PLATE_WIDTH)
+        pygame.draw.line(self.screen, COLOR_HAIRLINE_SUBTLE, (PLATE_LEFT, heading.bottom + 14), (PLATE_LEFT + PLATE_WIDTH, heading.bottom + 14), 1)
+        return heading.bottom + 15
+
+    def _draw_key_legend(self, entries: list[tuple[list[str], str]], pos: tuple[int, int]) -> None:
+        """Draw a row of key plates, each group followed by what the keys do."""
+        x, y = pos
+        for keys, meaning in entries:
+            for key in keys:
+                plate = self._draw_tag(key, (x, y), ink=COLOR_TEXT_PRIMARY, fill=COLOR_BG, border=COLOR_TEXT_SECONDARY)
+                x = plate.right + 6
+            text = self._draw_text(meaning, self.font_small, COLOR_TEXT_SECONDARY, (x + 6, y), midleft=True)
+            x = text.right + 36
+
     def draw_id_input(self, current_text: str, error_msg: str | None) -> None:
         """Render participant ID entry screen."""
         self.screen.fill(COLOR_BG)
-        card_rect = pygame.Rect(self.width // 2 - 250, self.height // 2 - 140, 500, 280)
-        self._draw_card(card_rect, COLOR_HAIRLINE_SUBTLE)
+        top = self._draw_plate("SESSION SETUP", "PULSE", 232)
+        self._draw_text("Enter the subject ID (for example S01).", self.font_lead, COLOR_TEXT_SECONDARY, (PLATE_LEFT, top + 22))
 
-        self._draw_text("PULSE ENGINE", self.font_hero, COLOR_TEXT_PRIMARY, (self.width // 2, card_rect.top + 50), center=True)
-        self._draw_text("Enter Subject ID (e.g. S01):", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.top + 105), center=True)
-
-        box_rect = pygame.Rect(self.width // 2 - 120, card_rect.top + 140, 240, 48)
-        pygame.draw.rect(self.screen, (28, 28, 28), box_rect, border_radius=0)
-        pygame.draw.rect(self.screen, COLOR_TEXT_SECONDARY, box_rect, width=1, border_radius=0)
-
-        display_str = current_text + ("_" if (pygame.time.get_ticks() // 500) % 2 == 0 else "")
-        self._draw_text(display_str, self.font_title, COLOR_TEXT_PRIMARY, box_rect.center, center=True)
+        box = pygame.Rect(PLATE_LEFT, top + 76, 280, 54)
+        pygame.draw.rect(self.screen, (28, 28, 28), box, border_radius=0)
+        pygame.draw.rect(self.screen, COLOR_TEXT_SECONDARY, box, width=1, border_radius=0)
+        cursor = "_" if (pygame.time.get_ticks() // 500) % 2 == 0 else " "
+        self._draw_text(current_text + cursor, self.font_title, COLOR_TEXT_PRIMARY, (box.left + 16, box.centery), midleft=True)
 
         if error_msg:
-            self._draw_text(error_msg, self.font_small, COLOR_TIMER_RED, (self.width // 2, box_rect.bottom + 20), center=True)
+            self._draw_text(error_msg, self.font_small, COLOR_SEMANTIC_WARNING, (PLATE_LEFT, box.bottom + 28), midleft=True)
         else:
-            self._draw_text("Press ENTER to confirm", self.font_small, COLOR_TEXT_SECONDARY, (self.width // 2, box_rect.bottom + 20), center=True)
+            self._draw_key_legend([(["ENTER"], "confirm"), (["ESC"], "quit")], (PLATE_LEFT, box.bottom + 28))
 
     def draw_baseline(self, elapsed_s: float, total_s: float) -> None:
-        """Render physiological baseline calibration with breathing pacer."""
+        """Render the resting baseline: a static fixation cross and an unobtrusive progress line."""
         self.screen.fill(COLOR_BG)
-        rem_s = max(0, round(total_s - elapsed_s))
+        self._draw_plate("RESTING BASELINE", "Baseline calibration", 84, self.font_title)
+        self._draw_text("Relax your hands, keep still, and breathe normally.", self.font_lead, COLOR_TEXT_SECONDARY, (PLATE_LEFT, 168))
 
         # Static fixation target. No respiratory pacing: a paced slow breath entrains RSA and
         # inflates resting RMSSD/SDNN, which would bias every baseline-relative z-score.
-        center = (self.width // 2, self.height // 2 - 20)
-        pygame.draw.circle(self.screen, (32, 32, 32), center, 125)
-        pygame.draw.circle(self.screen, COLOR_HAIRLINE_SUBTLE, center, 80, width=1)
+        center = (self.width // 2, self.height // 2 + 30)
+        pygame.draw.circle(self.screen, (30, 30, 30), center, 120)
+        pygame.draw.circle(self.screen, COLOR_HAIRLINE_SUBTLE, center, 76, width=1)
         pygame.draw.line(self.screen, COLOR_TEXT_SECONDARY, (center[0] - 12, center[1]), (center[0] + 12, center[1]), 2)
         pygame.draw.line(self.screen, COLOR_TEXT_SECONDARY, (center[0], center[1] - 12), (center[0], center[1] + 12), 2)
+        self._draw_text("Rest your eyes on the cross", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, center[1] + 150), center=True)
 
-        self._draw_text("BASELINE PHYSIOLOGICAL CALIBRATION", self.font_title, COLOR_TEXT_PRIMARY, (self.width // 2, 80), center=True)
-        self._draw_text("Relax your hands, keep still, and breathe normally.", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, 120), center=True)
-        self._draw_text("Rest your eyes on the cross", self.font_title, COLOR_TEXT_SECONDARY, (self.width // 2, self.height // 2 + 130), center=True)
-        self._draw_text(f"Calibration Time Remaining: {rem_s}s", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, self.height - 80), center=True)
+        # The time left is kept small and muted so it does not pull the eyes off the cross
+        remaining = max(0, round(total_s - elapsed_s))
+        self._draw_progress_line(pygame.Rect(PLATE_LEFT, self.height - 66, PLATE_WIDTH, 3), elapsed_s / total_s if total_s > 0 else 1.0, COLOR_TEXT_MUTED)
+        self._draw_text(f"{remaining // 60}:{remaining % 60:02d} remaining", self.font_mono_small, COLOR_TEXT_MUTED, (PLATE_LEFT + PLATE_WIDTH, self.height - 44), midright=True)
 
     def draw_priming(self, scenario: Scenario, elapsed_s: float, skip_available: bool = True) -> None:
         """Render scenario priming instructions and stakes briefing."""
         self.screen.fill(COLOR_BG)
-        rem_s = max(0, round(scenario.priming_duration_s - elapsed_s))
+        # The setting names the place; the paradigm and the research domain are never shown to participants
+        top = self._draw_plate(f"BRIEFING  •  {SETTING_LABELS.get(scenario.skin, 'SCENARIO')}", scenario.title, 132)
+        text_rect = pygame.Rect(PLATE_LEFT, top + 26, PLATE_WIDTH, 236)
+        self._draw_wrapped_text(scenario.priming_text, self.font_lead, COLOR_TEXT_PRIMARY, text_rect, spacing=8)
 
-        card_rect = pygame.Rect(self.width // 2 - 500, self.height // 2 - 225, 1000, 450)
-        self._draw_card(card_rect, COLOR_HAIRLINE_SUBTLE)
+        keys = ["1"] if scenario.scenario_type == ScenarioType.REWARD_ACCUMULATOR else [str(opt.key) for opt in scenario.options]
+        self._draw_key_legend([(keys, "respond"), (["TAB"], "hold to re-read this briefing")], (PLATE_LEFT, 520))
 
-        self._draw_text(scenario.domain_id.value.replace("_", " ").upper(), self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 45, card_rect.top + 28))
-
-        # Dynamic title font size to prevent overflow
-        title_font = self.font_hero if self.font_hero.size(scenario.title)[0] <= card_rect.width - 90 else self.font_title
-        self._draw_text(scenario.title, title_font, COLOR_TEXT_PRIMARY, (card_rect.left + 45, card_rect.top + 52))
-
-        # The paradigm name stays in the scenario registry and logs; it is never shown to participants
-
-        # Priming text container with generous room
-        text_rect = pygame.Rect(card_rect.left + 45, card_rect.top + 148, card_rect.width - 90, 230)
-        self._draw_wrapped_text(scenario.priming_text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=8)
-        self._draw_text(
-            f"Press [SPACE] to start immediately • Auto-starting in {rem_s}s..." if skip_available else f"Read carefully • Starting in {rem_s}s...",
-            self.font_body,
-            COLOR_ACCENT_CYAN,
-            (self.width // 2, card_rect.bottom - 35),
-            center=True,
-        )
+        duration = float(scenario.priming_duration_s)
+        self._draw_progress_line(pygame.Rect(PLATE_LEFT, 558, PLATE_WIDTH, 3), elapsed_s / duration if duration > 0 else 1.0, COLOR_ACCENT_CYAN)
+        remaining = max(0, round(duration - elapsed_s))
+        if skip_available:
+            self._draw_key_legend([(["SPACE"], f"begin now  •  starts by itself in {remaining} s")], (PLATE_LEFT, 592))
+        else:
+            self._draw_text(f"Read the briefing  •  starts in {remaining} s", self.font_small, COLOR_TEXT_SECONDARY, (PLATE_LEFT, 592), midleft=True)
 
     def draw_question_popup(self, scenario: Scenario) -> None:
         """Render modal overlay displaying the scenario briefing, question, and context."""
-        # Dim background with semi-transparent overlay
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        overlay.fill((16, 16, 16, 230))
+        overlay.fill((16, 16, 16, 236))
         self.screen.blit(overlay, (0, 0))
 
-        # Modal Card
-        card_w = 980
-        card_h = 490
-        card_rect = pygame.Rect(self.width // 2 - card_w // 2, self.height // 2 - card_h // 2, card_w, card_h)
-        self._draw_card(card_rect, border_color=COLOR_HAIRLINE_SUBTLE, bg_color=COLOR_BG)
+        card = pygame.Rect(PLATE_LEFT - 40, 96, PLATE_WIDTH + 80, 528)
+        self._draw_card(card, border_color=COLOR_HAIRLINE_SUBTLE, bg_color=COLOR_BG)
+        top = self._draw_plate(f"BRIEFING  •  {SETTING_LABELS.get(scenario.skin, 'SCENARIO')}", scenario.title, card.top + 36)
+        self._draw_text("HOLDING TAB — RELEASE TO RETURN", self.font_mono_small, COLOR_TIMER_AMBER, (card.right - 40, card.top + 36), midright=True)
+        briefing = pygame.Rect(PLATE_LEFT, top + 20, PLATE_WIDTH, 180)
+        self._draw_wrapped_text(scenario.priming_text, self.font_body, COLOR_TEXT_PRIMARY, briefing, spacing=8)
 
-        # Header: Domain tag + Active Hold Notice
-        self._draw_text(scenario.domain_id.value.replace("_", " ").upper(), self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 40, card_rect.top + 24))
-
-        rel_notice = "[ HOLDING TAB / Q — RELEASE TO RETURN ]"
-        rn_w = self.font_mono_small.size(rel_notice)[0]
-        self._draw_text(rel_notice, self.font_mono_small, COLOR_TIMER_AMBER, (card_rect.right - 40 - rn_w, card_rect.top + 24))
-
-        # Title
-        title_font = self.font_hero if self.font_hero.size(scenario.title)[0] <= card_rect.width - 80 else self.font_title
-        self._draw_text(scenario.title, title_font, COLOR_TEXT_PRIMARY, (card_rect.left + 40, card_rect.top + 48))
-
-        # Divider
-        pygame.draw.line(self.screen, COLOR_HAIRLINE, (card_rect.left + 35, card_rect.top + 130), (card_rect.right - 35, card_rect.top + 130), 1)
-
-        # Question / Priming Section
-        self._draw_text("SCENARIO QUESTION & BRIEFING:", self.font_small, COLOR_ACCENT_CYAN, (card_rect.left + 40, card_rect.top + 144))
-        briefing_rect = pygame.Rect(card_rect.left + 40, card_rect.top + 170, card_rect.width - 80, 160)
-        self._draw_wrapped_text(scenario.priming_text, self.font_body, COLOR_TEXT_PRIMARY, briefing_rect, spacing=8)
-
-        # Options Summary Box (if scenario has options)
-        if scenario.options and scenario.scenario_type not in (ScenarioType.MIST_ARITHMETIC,):
-            opt_box = pygame.Rect(card_rect.left + 40, card_rect.top + 345, card_rect.width - 80, 104)
-            pygame.draw.rect(self.screen, (32, 32, 32), opt_box, border_radius=0)
-            pygame.draw.rect(self.screen, COLOR_HAIRLINE, opt_box, width=1, border_radius=0)
-            self._draw_text("AVAILABLE CHOICES:", self.font_mono_small, COLOR_TEXT_SECONDARY, (opt_box.left + 16, opt_box.top + 8))
-            opt_summary = "\n".join(f"[{opt.key}] {opt.text}" for opt in scenario.options)
-            opt_summary_rect = pygame.Rect(opt_box.left + 16, opt_box.top + 28, opt_box.width - 32, 70)
-            self._draw_wrapped_text(opt_summary, self.font_small, (229, 229, 229), opt_summary_rect, spacing=2)
-
-        # Bottom release hint
-        self._draw_text("Release [TAB] or [Q] to resume scenario decision", self.font_small, (140, 140, 140), (self.width // 2, card_rect.bottom - 24), center=True)
+        # Options summary (the arithmetic run has no fixed options to list)
+        if scenario.options and scenario.scenario_type != ScenarioType.MIST_ARITHMETIC:
+            box = pygame.Rect(PLATE_LEFT, card.bottom - 178, PLATE_WIDTH, 116)
+            pygame.draw.rect(self.screen, (32, 32, 32), box, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_HAIRLINE, box, width=1, border_radius=0)
+            self._draw_text("YOUR CHOICES", self.font_mono_small, COLOR_TEXT_SECONDARY, (box.left + 16, box.top + 16), midleft=True)
+            summary = "\n".join(f"[{opt.key}]  {opt.text}" for opt in scenario.options)
+            self._draw_wrapped_text(summary, self.font_small, (229, 229, 229), pygame.Rect(box.left + 16, box.top + 32, box.width - 32, 78), spacing=2)
+        self._draw_text("The timer keeps running while this briefing is open.", self.font_small, (140, 140, 140), (self.width // 2, card.bottom - 30), center=True)
 
     def draw_feedback(self, consequence_text: str, elapsed_s: float) -> None:
         """Render scenario consequence narrative feedback."""
         self.screen.fill(COLOR_BG)
-        card_rect = pygame.Rect(self.width // 2 - 460, self.height // 2 - 165, 920, 330)
-        self._draw_card(card_rect, COLOR_HAIRLINE_SUBTLE)
+        lowered = consequence_text.lower()
+        suspended = "account suspended" in lowered or "system failure" in lowered
+        collapsed = "collapsed" in lowered
+        rule = COLOR_TIMER_RED if suspended or collapsed else COLOR_TEXT_SECONDARY
 
-        self._draw_text("CONSEQUENCE RECORDED", self.font_small, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.top + 32), center=True)
-        text_rect = pygame.Rect(card_rect.left + 50, card_rect.top + 70, card_rect.width - 100, 165)
-        self._draw_wrapped_text(consequence_text, self.font_body, COLOR_TEXT_PRIMARY, text_rect, spacing=6)
+        block = pygame.Rect(PLATE_LEFT, 214, PLATE_WIDTH, 292)
+        pygame.draw.rect(self.screen, rule, (block.left, block.top, 4, block.height), border_radius=0)
+        self._draw_text("OUTCOME", self.font_mono_small, COLOR_TEXT_SECONDARY, (block.left + 32, block.top + 12), midleft=True)
+        text_rect = pygame.Rect(block.left + 32, block.top + 46, block.width - 64, 160)
+        self._draw_wrapped_text(consequence_text, self.font_lead, COLOR_TEXT_PRIMARY, text_rect, spacing=8)
 
-        # Display account suspension warning badge if burst occurred
-        if "account suspended" in consequence_text.lower() or "system failure" in consequence_text.lower():
-            warn_badge = pygame.Rect(card_rect.left + 50, card_rect.bottom - 50, card_rect.width - 100, 34)
-            pygame.draw.rect(self.screen, (24, 24, 24), warn_badge, border_radius=0)
-            pygame.draw.rect(self.screen, COLOR_TIMER_RED, warn_badge, width=1, border_radius=0)
-            self._draw_text("ACCOUNT SUSPENDED — REACH RESET TO ZERO", self.font_small, COLOR_TIMER_RED, warn_badge.center, center=True)
+        # The suspension badge is shown for that outcome only
+        if suspended:
+            badge = pygame.Rect(block.left + 32, block.bottom - 62, block.width - 64, 36)
+            pygame.draw.rect(self.screen, COLOR_BG, badge, border_radius=0)
+            pygame.draw.rect(self.screen, COLOR_TIMER_RED, badge, width=1, border_radius=0)
+            self._draw_text("ACCOUNT SUSPENDED — REACH RESET TO ZERO", self.font_small, COLOR_TIMER_RED, badge.center, center=True)
+        self._draw_progress_line(pygame.Rect(block.left + 32, block.bottom - 3, block.width - 64, 3), elapsed_s / float(DEFAULT_CONSEQUENCE_DURATION_S), COLOR_TEXT_MUTED)
 
         # Disperse shatter particles if active or if consequence was collapse
-        if "collapsed" in consequence_text.lower() and not self.shatter_effect.particles:
+        if collapsed and not self.shatter_effect.particles:
             self.shatter_effect.trigger((self.width // 2, self.height // 2))
         if self.shatter_effect.is_active:
             self.shatter_effect.update(16)
             self.shatter_effect.draw(self.screen)
 
-    def draw_rest(self, is_inter_domain: bool, time_remaining_s: float) -> None:
-        """Render soothing rest gradient screen between scenarios or domains."""
-        # Top-to-bottom gradient
+    def draw_rest(self, is_inter_domain: bool, time_remaining_s: float, total_s: float | None = None) -> None:
+        """Render the rest screen between scenarios or domains: a quiet gradient, one instruction, the time left."""
         for y in range(self.height):
-            ratio = y / float(self.height)
-            r = int(COLOR_REST_GRADIENT_TOP[0] + (COLOR_REST_GRADIENT_BOTTOM[0] - COLOR_REST_GRADIENT_TOP[0]) * ratio)
-            g = int(COLOR_REST_GRADIENT_TOP[1] + (COLOR_REST_GRADIENT_BOTTOM[1] - COLOR_REST_GRADIENT_TOP[1]) * ratio)
-            b = int(COLOR_REST_GRADIENT_TOP[2] + (COLOR_REST_GRADIENT_BOTTOM[2] - COLOR_REST_GRADIENT_TOP[2]) * ratio)
-            pygame.draw.line(self.screen, (r, g, b), (0, y), (self.width, y))
+            pygame.draw.line(self.screen, self._mix(COLOR_REST_GRADIENT_TOP, COLOR_REST_GRADIENT_BOTTOM, y / float(self.height)), (0, y), (self.width, y))
 
-        rem_s = max(0, round(time_remaining_s))
-        title = "Inter-Domain Rest Period" if is_inter_domain else "Intra-Domain Recovery"
-        self._draw_text(title, self.font_hero, COLOR_TEXT_PRIMARY, (self.width // 2, self.height // 2 - 60), center=True)
-        self._draw_text("Rest quietly. Next section begins shortly.", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, self.height // 2 - 5), center=True)
-        self._draw_text(f"{rem_s}s", self.font_hero, COLOR_ACCENT_CYAN, (self.width // 2, self.height // 2 + 65), center=True)
+        top = self._draw_plate("REST", "Rest break" if is_inter_domain else "Short pause", 236)
+        self._draw_text("Keep your hand relaxed and still. The next part begins by itself.", self.font_lead, COLOR_TEXT_SECONDARY, (PLATE_LEFT, top + 24))
+        remaining = max(0, round(time_remaining_s))
+        number = self._draw_text(str(remaining), self.font_hero, COLOR_ACCENT_CYAN, (PLATE_LEFT, top + 84))
+        self._draw_text("seconds", self.font_body, COLOR_TEXT_SECONDARY, (number.right + 12, number.bottom - 12), midleft=True)
+        if total_s is not None and total_s > 0:
+            self._draw_progress_line(pygame.Rect(PLATE_LEFT, number.bottom + 22, PLATE_WIDTH, 3), 1.0 - time_remaining_s / total_s, COLOR_ACCENT_CYAN)
 
     def draw_debrief(self, total_duration_s: float, scenarios_completed: int) -> None:
         """Render final session completion debrief screen."""
         self.screen.fill(COLOR_BG)
-        card_rect = pygame.Rect(self.width // 2 - 350, self.height // 2 - 160, 700, 320)
-        self._draw_card(card_rect, COLOR_HAIRLINE_SUBTLE)
-
-        self._draw_text("SESSION COMPLETE", self.font_hero, COLOR_TEXT_PRIMARY, (self.width // 2, card_rect.top + 45), center=True)
-        self._draw_text("Thank you for your participation.", self.font_title, COLOR_TEXT_PRIMARY, (self.width // 2, card_rect.top + 105), center=True)
-
-        mins = int(total_duration_s // 60)
-        secs = int(total_duration_s % 60)
-        time_str = f"{mins:02d}:{secs:02d}"
-        self._draw_text(f"Total Session Duration: {time_str}", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.top + 165), center=True)
-        self._draw_text(f"Scenarios Completed: {scenarios_completed}", self.font_body, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.top + 205), center=True)
-        self._draw_text("Press ESC or close the window to exit.", self.font_small, COLOR_TEXT_SECONDARY, (self.width // 2, card_rect.bottom - 40), center=True)
+        top = self._draw_plate("SESSION COMPLETE", "Thank you for taking part.", 232)
+        minutes, seconds = int(total_duration_s // 60), int(total_duration_s % 60)
+        self._draw_text(f"Session length  {minutes:02d}:{seconds:02d}", self.font_lead, COLOR_TEXT_SECONDARY, (PLATE_LEFT, top + 24))
+        self._draw_text(f"Scenarios completed  {scenarios_completed}", self.font_lead, COLOR_TEXT_SECONDARY, (PLATE_LEFT, top + 62))
+        self._draw_text("The session has ended. You may relax your hand now.", self.font_body, COLOR_TEXT_PRIMARY, (PLATE_LEFT, top + 122))
+        self._draw_key_legend([(["ESC"], "close the session")], (PLATE_LEFT, top + 184))

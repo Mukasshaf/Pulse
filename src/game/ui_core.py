@@ -21,6 +21,12 @@ class UIRendererCore:
     FONT_FALLBACKS: ClassVar[list[str | None]] = ["segoeui", "arial", "helvetica", None]
     MONO_FONT_FALLBACKS: ClassVar[list[str | None]] = ["consolas", "couriernew", "lucidaconsole", "monospace", None]
 
+    # Shared layout grid (1280x720): every screen keeps its content inside the same side margins,
+    # starts it below the timer bar, and puts its one-line instruction on the same footer line
+    MARGIN: ClassVar[int] = 50
+    CONTENT_TOP: ClassVar[int] = 96
+    FOOTER_Y: ClassVar[int] = 704
+
     def __init__(self, screen: pygame.Surface) -> None:
         """Initialize font caches and display geometry."""
         self.screen: pygame.Surface = screen
@@ -54,6 +60,7 @@ class UIRendererCore:
         mono = ("consola.ttf", "cour.ttf")
         self.font_hero: pygame.font.Font = resolve(sans_display, self.FONT_FALLBACKS, 44, bold=True)
         self.font_title: pygame.font.Font = resolve(sans_display, self.FONT_FALLBACKS, 28, bold=True)
+        self.font_lead: pygame.font.Font = resolve(sans, self.FONT_FALLBACKS, 24)
         self.font_body: pygame.font.Font = resolve(sans, self.FONT_FALLBACKS, 20)
         self.font_small: pygame.font.Font = resolve(sans, self.FONT_FALLBACKS, 16)
         self.font_caption: pygame.font.Font = resolve(sans, self.FONT_FALLBACKS, 13)
@@ -92,7 +99,7 @@ class UIRendererCore:
     def _ladder(self, font: pygame.font.Font) -> list[pygame.font.Font]:
         """Return fonts of the same family no larger than the given one, largest first."""
         mono = [self.font_mono, self.font_mono_small, self.font_mono_caption]
-        sans = [self.font_hero, self.font_title, self.font_body, self.font_small, self.font_caption]
+        sans = [self.font_hero, self.font_title, self.font_lead, self.font_body, self.font_small, self.font_caption]
         family = mono if any(font is f for f in mono) else sans
         return [f for f in family if f.get_linesize() <= font.get_linesize()]
 
@@ -138,6 +145,28 @@ class UIRendererCore:
         """Record the committed option so post-decision screens reflect what was actually chosen."""
         self._last_fork_choice = option_index
 
+    @staticmethod
+    def _wrap_lines(text: str, font: pygame.font.Font, width: int) -> list[str]:
+        """Break text into lines no wider than width; an empty string marks a paragraph break."""
+        lines: list[str] = []
+        for paragraph in text.split("\n"):
+            words = paragraph.strip().split(" ") if paragraph.strip() else []
+            if not words:
+                lines.append("")
+                continue
+            current = ""
+            for word in words:
+                candidate = f"{current} {word}".strip()
+                if font.size(candidate)[0] <= width:
+                    current = candidate
+                else:
+                    if current:
+                        lines.append(current)
+                    current = word
+            if current:
+                lines.append(current)
+        return lines
+
     def _draw_wrapped_text(
         self,
         text: str,
@@ -149,28 +178,9 @@ class UIRendererCore:
         center_h: bool = False,
     ) -> int:
         """Render multi-line text wrapped within a bounding rect with overflow protection. Returns final y."""
-        paragraphs = text.split("\n")
 
         def _wrap_lines(f: pygame.font.Font) -> list[str]:
-            res: list[str] = []
-            for p in paragraphs:
-                p_clean = p.strip()
-                if not p_clean:
-                    res.append("")
-                    continue
-                words = p_clean.split(" ")
-                curr_line = ""
-                for word in words:
-                    test_line = f"{curr_line} {word}".strip()
-                    if f.size(test_line)[0] <= rect.width:
-                        curr_line = test_line
-                    else:
-                        if curr_line:
-                            res.append(curr_line)
-                        curr_line = word
-                if curr_line:
-                    res.append(curr_line)
-            return res
+            return self._wrap_lines(text, f, rect.width)
 
         active_font = font
         lines = _wrap_lines(active_font)
