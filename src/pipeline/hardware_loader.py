@@ -96,7 +96,7 @@ def load_hardware_csv(path: str | Path) -> dict[str, Any]:
 
     fs_dict = {"bvp": HW_FS, "eda": HW_FS, "acc": HW_FS}
 
-    return {
+    res = {
         "sid":          path.stem,
         "bvp":          bvp,
         "eda":          eda,
@@ -106,6 +106,11 @@ def load_hardware_csv(path: str | Path) -> dict[str, Any]:
         "timestamp_ms": ts,
         "sample_idx":   df["sample_idx"].values.astype(np.int64),
     }
+    
+    if "unix_ts_ms" in df.columns:
+        res["unix_ts_ms"] = df["unix_ts_ms"].values.astype(np.int64)
+        
+    return res
 
 
 
