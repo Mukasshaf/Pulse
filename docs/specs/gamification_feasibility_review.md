@@ -201,7 +201,8 @@ SESSION FLOW (Keyboard-Only, Score-Free, No Adaptive Selection)
 
 [1. Registration]  Subject ID + Session ID (keyboard entry)
         │
-[2. Baseline Calibration]  3 min resting (calm breathing visual)
+[2. Baseline Calibration]  3 min resting (static fixation cross; spontaneous breathing —
+   │                        no paced-breathing visual, revised 2026-10-02, see Decisions.md)
    │                        └── Computes: μ_hr, σ_hr, μ_gsr, σ_gsr,
    │                                      μ_acc, σ_acc (for deception metric threshold)
    │
@@ -253,3 +254,19 @@ SESSION FLOW (Keyboard-Only, Score-Free, No Adaptive Selection)
 2. **Diegetic audio:** Should we include a low-frequency tension drone during the decision phase timer countdown, or keep the experience completely silent during active scenarios?
 
 3. **Timeout behavior:** When the decision timer expires without a choice — should the system force-select a default "no response" option, or show a "time's up" screen and skip to consequence?
+
+---
+
+## Addendum (2026-10-02): What Was Built, Against This Review
+
+This review set the direction before implementation. Three of its recommendations were revisited once the engine existed (decisions ADR-B2…B5 in `Decisions.md`):
+
+| Recommendation here | As built | Why |
+|---|---|---|
+| 60s rest between domains, 15s within a domain | **30s** between domains by default, **60s** with `--extended-rest`; 15s within a domain | This review itself notes that parasympathetic rebound takes 30–60s in healthy young adults, so 30s sits at the lower edge of that range, not below it. Every feature is z-scored against the 3-minute resting baseline and domain order is randomised, which limits what residual carry-over can do. The time difference is small (six rests: 3 minutes per session); the reason for the shorter default is engagement over a run of idle screens. The value used is logged in every session |
+| "14 scenarios × ~60s avg = 14 min", total ~35 min | 13 scenarios of 69s and one of 64s (about 16 min), baseline 3 min, rests about 4.75 min: **about 24 min** of game time, 27 with extended rest | Priming is a 20s text briefing in every scenario; decisions are 45s (40s for the arithmetic run) and are always held to the end of the window |
+| Fixed but tight timer per scenario, "30s for simple binary choices, 45s for complex" | 45s for all choices, 40s for the arithmetic run | A 30s decision cannot fill a 60s HRV window even with priming and feedback unless priming is long; one fixed length also keeps the stimulus identical across scenarios |
+| Subtle deteriorating UI, no strobing | Kept, and bounded: jitter ≤3px and vibration ≤2px as vector magnitudes, everything ≤2Hz, compass ≤4 RPM | — |
+| MPU6050 deception metric in the social-evaluation domain only | Kept. Driven by a real sensor bridge (live ESP32 or a followed recording); shows STANDBY when no live data exists | A display that claims to show arousal must show real data or nothing |
+
+Added after this review and not anticipated by it: the participant's choice is committed on keypress but the screen is held to the end of the window (so reflexive answers cannot shorten the physiological epoch); the arithmetic task adapts its per-item time limit during the run; the risk task is a single paced balloon with a logged hazard curve; the interface uses one restrained palette in which red is reserved for stress cues.

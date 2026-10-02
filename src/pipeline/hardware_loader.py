@@ -16,9 +16,11 @@ Do NOT hardcode 64 anywhere downstream of this file -- always use HW_FS
 or read df.attrs["fs"] from the returned DataFrame.
 """
 
-import pandas as pd
-import numpy as np
 from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 # True hardware fs -- confirmed from real timestamp deltas across captures
 # (SAMPLE_INTERVAL_MS = 15 in firmware -> 1000/15 = 66.6667 Hz)
@@ -38,7 +40,7 @@ REQUIRED_COLUMNS = {
 }
 
 
-def load_hardware_csv(path: str | Path) -> dict:
+def load_hardware_csv(path: str | Path) -> dict[str, Any]:
     """
     Load one hardware CSV and return a dict matching the shape that
     preprocess.preprocess_subject() expects:
@@ -139,7 +141,7 @@ def load_condition_log(path: str | Path) -> pd.DataFrame:
 
 def load_labeled_hardware_csv(csv_path: str | Path,
                                log_path:  str | Path,
-                               subject_id: str | None = None) -> dict:
+                               subject_id: str | None = None) -> dict[str, Any]:
     """
     Load a hardware CSV and assign per-sample condition labels by joining
     it against a condition log (from condition_logger.py) on unix_ts_ms.
@@ -170,7 +172,8 @@ def load_labeled_hardware_csv(csv_path: str | Path,
     Returns:
         Same dict shape as load_hardware_csv(), with labels dict populated.
     """
-    import sys, os
+    import os
+    import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from condition_labels import CONDITION_TO_LABEL
 

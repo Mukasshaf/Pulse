@@ -1,17 +1,15 @@
 
 
-import numpy as np
-import pandas as pd
-from pathlib import Path
-import sys
 import os
-import json
+import sys
+from pathlib import Path
+
+import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject, LABEL_NAMES
+from features import extract_window_features
 from preprocess import preprocess_subject
-from features import extract_window_features, save_features
-
+from wesad_loader import load_subject
 
 FEATURE_COLS = [
         "mean_hr", "rmssd", "sdnn", "pnn50",
@@ -115,7 +113,7 @@ def normalization_summary(df_raw: pd.DataFrame,
     baseline_norm = df_norm[df_norm["label"] == 1][FEATURE_COLS]
     stress_norm   = df_norm[df_norm["label"] == 2][FEATURE_COLS]
 
-    print(f"\n  Baseline z-scores (expect mean ≈ 0, std ≈ 1):")
+    print("\n  Baseline z-scores (expect mean ≈ 0, std ≈ 1):")
     print(f"  {'Feature':<16} {'mean':>8} {'std':>8}  check")
     print(f"  {'-'*44}")
     for col in FEATURE_COLS:
@@ -124,7 +122,7 @@ def normalization_summary(df_raw: pd.DataFrame,
         ok = "✓" if abs(m) < 0.1 and 0.7 < s < 1.3 else "!"
         print(f"  {col:<16} {m:>8.3f} {s:>8.3f}  {ok}")
 
-    print(f"\n  Stress z-scores (deviation from baseline):")
+    print("\n  Stress z-scores (deviation from baseline):")
     print(f"  {'Feature':<16} {'mean z':>8}  direction")
     print(f"  {'-'*38}")
     for col in FEATURE_COLS:
@@ -132,7 +130,7 @@ def normalization_summary(df_raw: pd.DataFrame,
         direction = "↑ activated" if m > 0.3 else ("↓ suppressed" if m < -0.3 else "~ neutral")
         print(f"  {col:<16} {m:>8.3f}  {direction}")
 
-    print(f"\n  Baseline stats (mu / sigma used for normalization):")
+    print("\n  Baseline stats (mu / sigma used for normalization):")
     print(f"  {'Feature':<16} {'mu':>10} {'sigma':>10}")
     print(f"  {'-'*40}")
     for _, row in baseline_stats.iterrows():

@@ -1,11 +1,13 @@
 """Thread-safe CSV event logger and session metadata manager for Pulse."""
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from src.game.constants import DomainID, EventType, LoggerIOError
 
@@ -28,7 +30,7 @@ class GameEvent:
 class EventLogger:
     """Thread-safe writer for structured event CSV logs and session metadata."""
 
-    CSV_COLUMNS: list[str] = [
+    CSV_COLUMNS: ClassVar[list[str]] = [
         "unix_ts_ms",
         "event_type",
         "domain",
@@ -50,16 +52,19 @@ class EventLogger:
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
             self._csv_path: Path = self.output_dir / "events.csv"
-            self._file = open(self._csv_path, mode="w", newline="", encoding="utf-8")
-            self._writer = csv.writer(
-                self._file,
-                delimiter=",",
-                quotechar='"',
-                quoting=csv.QUOTE_MINIMAL,
-                lineterminator="\n",
-            )
-            self._writer.writerow(self.CSV_COLUMNS)
-            self._file.flush()
+            with contextlib.ExitStack() as stack:
+                self._file = stack.enter_context(open(self._csv_path, mode="w", newline="", encoding="utf-8"))
+                self._writer = csv.writer(
+                    self._file,
+                    delimiter=",",
+                    quotechar='"',
+                    quoting=csv.QUOTE_MINIMAL,
+                    lineterminator="\n",
+                )
+                self._writer.writerow(self.CSV_COLUMNS)
+                self._file.flush()
+                # Header is on disk: keep the handle open for the session; close() releases it
+                self._stack: contextlib.ExitStack[bool | None] = stack.pop_all()
         except OSError as exc:
             raise LoggerIOError(str(self.output_dir), str(exc)) from exc
 
@@ -129,7 +134,7 @@ class EventLogger:
             if not self._closed:
                 try:
                     self._file.flush()
-                    self._file.close()
+                    self._stack.close()
                 except OSError:
                     pass
                 finally:

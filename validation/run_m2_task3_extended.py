@@ -4,11 +4,14 @@ Extended Task 3 evaluation on moving4-7 (sensor hand stable) +
 hand_typing1/2 (both hands in motion).
 Appends results to M2_Validation_Summary.md.
 """
-import sys, os, numpy as np, pandas as pd
+import sys
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+
 sys.path.insert(0, "../src")
-from preprocess import clean_bvp, detect_peaks, decompose_eda
-import neurokit2 as nk
+from preprocess import clean_bvp, detect_peaks
 
 FS = 1000.0 / 15.0
 WIN = int(FS)  # 66 samples per 1s window
@@ -46,7 +49,7 @@ def peak_hr(df):
         pct = round(len(valid)/len(ibi)*100, 2)
         bpm = round(60000.0/float(np.mean(valid)), 2) if len(valid)>0 else None
         return bpm, pct, len(ibi)
-    except:
+    except Exception:  # noqa: BLE001 - any analysis failure is reported as "no result" for the capture
         return None, None, None
 
 def gsr_stats(df):
@@ -89,19 +92,19 @@ def task3_stable_hand(fname, tap_s=20.0, tap_e=40.0, buf_s=5.0):
     post_mean= float(np.mean(roll[post_idx]))  if len(post_idx)> 0 else np.nan
     post_max = float(np.max(roll[post_idx]))   if len(post_idx)> 0 else np.nan
 
-    return dict(
-        file=fname, status="PASS" if passed else "FAIL",
-        dur=dur, gaps=gaps, missed=missed, drop_pct=drop,
-        bpm=bpm, pct_valid_ibi=pct_valid, n_ibi=n_ibi,
-        gsr_mean=gsr_mean, gsr_std=gsr_std, gsr_range=f"[{gsr_min},{gsr_max}]",
-        sat_at_0=sat0, sat_at_4095=sat4095,
-        pre_mu=round(mu,2), pre_sig=round(sig,2), threshold=round(thr,2),
-        pre_n=len(pre_idx), pre_mean=round(pre_mean,1), pre_max=round(pre_max,1), pre_fp=pre_fp,
-        tap_n=len(tap_idx), tap_mean=round(tap_mean,1), tap_max=round(tap_max,1), tap_flagged=tap_flagged,
-        post_n=len(post_idx), post_mean=round(post_mean,1), post_max=round(post_max,1), post_fp=post_fp,
-        gate_tap=gate_tap, gate_pre=gate_pre,
-        all_stds=[round(float(v),1) for v in roll],
-    )
+    return {
+        "file": fname, "status": "PASS" if passed else "FAIL",
+        "dur": dur, "gaps": gaps, "missed": missed, "drop_pct": drop,
+        "bpm": bpm, "pct_valid_ibi": pct_valid, "n_ibi": n_ibi,
+        "gsr_mean": gsr_mean, "gsr_std": gsr_std, "gsr_range": f"[{gsr_min},{gsr_max}]",
+        "sat_at_0": sat0, "sat_at_4095": sat4095,
+        "pre_mu": round(mu,2), "pre_sig": round(sig,2), "threshold": round(thr,2),
+        "pre_n": len(pre_idx), "pre_mean": round(pre_mean,1), "pre_max": round(pre_max,1), "pre_fp": pre_fp,
+        "tap_n": len(tap_idx), "tap_mean": round(tap_mean,1), "tap_max": round(tap_max,1), "tap_flagged": tap_flagged,
+        "post_n": len(post_idx), "post_mean": round(post_mean,1), "post_max": round(post_max,1), "post_fp": post_fp,
+        "gate_tap": gate_tap, "gate_pre": gate_pre,
+        "all_stds": [round(float(v),1) for v in roll],
+    }
 
 # ============================================================
 # Task 3: both-hands-typing files
@@ -118,7 +121,6 @@ CROSS_FILE_THR      = round(CROSS_FILE_REST_MU + 2*CROSS_FILE_REST_SIG, 2)  # 62
 def task3_both_hands(fname):
     df   = pd.read_csv(fname)
     roll = rolling_acc_std(df)
-    t    = np.arange(len(roll), dtype=float)
 
     # Detect motion zone dynamically: first and last window above threshold
     flagged = np.where(roll > CROSS_FILE_THR)[0]
@@ -135,32 +137,32 @@ def task3_both_hands(fname):
     bpm, pct_valid, n_ibi   = peak_hr(df)
     gsr_mean, gsr_std, gsr_min, gsr_max, sat0, sat4095 = gsr_stats(df)
 
-    return dict(
-        file=fname, status="REFERENCE",
-        dur=dur, gaps=gaps, missed=missed, drop_pct=drop,
-        bpm=bpm, pct_valid_ibi=pct_valid, n_ibi=n_ibi,
-        gsr_mean=gsr_mean, gsr_std=gsr_std, gsr_range=f"[{gsr_min},{gsr_max}]",
-        sat_at_0=sat0, sat_at_4095=sat4095,
-        cross_threshold=CROSS_FILE_THR,
-        n_windows=len(roll),
-        pct_windows_flagged=pct_flagged,
-        acc_mean=round(float(roll.mean()),1),
-        acc_max=round(float(roll.max()),1),
-        motion_zone_s=f"{motion_start}-{motion_end}s" if motion_start is not None else "none",
-        intense_zone_s=f"{intense_start}-{intense_end}s" if intense_start is not None else "none",
-        all_stds=[round(float(v),1) for v in roll],
-    )
+    return {
+        "file": fname, "status": "REFERENCE",
+        "dur": dur, "gaps": gaps, "missed": missed, "drop_pct": drop,
+        "bpm": bpm, "pct_valid_ibi": pct_valid, "n_ibi": n_ibi,
+        "gsr_mean": gsr_mean, "gsr_std": gsr_std, "gsr_range": f"[{gsr_min},{gsr_max}]",
+        "sat_at_0": sat0, "sat_at_4095": sat4095,
+        "cross_threshold": CROSS_FILE_THR,
+        "n_windows": len(roll),
+        "pct_windows_flagged": pct_flagged,
+        "acc_mean": round(float(roll.mean()),1),
+        "acc_max": round(float(roll.max()),1),
+        "motion_zone_s": f"{motion_start}-{motion_end}s" if motion_start is not None else "none",
+        "intense_zone_s": f"{intense_start}-{intense_end}s" if intense_start is not None else "none",
+        "all_stds": [round(float(v),1) for v in roll],
+    }
 
 # ============================================================
 # Report writer
 # ============================================================
 def write_section(stable_results, both_results):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
     L = []
     a = L.append
 
     a("\n---\n")
-    a(f"## Extended Task 3 Evaluation — Batch 3 Recordings")
+    a("## Extended Task 3 Evaluation — Batch 3 Recordings")
     a(f"*Appended: {now}*\n")
 
     a("### Recording Conditions\n")
@@ -187,8 +189,8 @@ def write_section(stable_results, both_results):
         a(f"#### `{r['file']}` — {icon}")
         a("")
         a("**Signal quality:**")
-        a(f"| Metric | Value |")
-        a(f"|---|---|")
+        a("| Metric | Value |")
+        a("|---|---|")
         a(f"| Duration | {r['dur']:.2f}s |")
         a(f"| Gap events / missed samples | {r['gaps']} / {r['missed']} |")
         a(f"| Drop rate | {r['drop_pct']}% |")
@@ -199,8 +201,8 @@ def write_section(stable_results, both_results):
         a(f"| ADC saturation (0 / 4095) | {r['sat_at_0']} / {r['sat_at_4095']} |")
         a("")
         a("**Motion flagging:**")
-        a(f"| Zone | Windows | Mean std | Max std | Flagged |")
-        a(f"|---|---|---|---|---|")
+        a("| Zone | Windows | Mean std | Max std | Flagged |")
+        a("|---|---|---|---|---|")
         a(f"| Pre-tap (0–15s) | {r['pre_n']} | {r['pre_mean']} | {r['pre_max']} | {r['pre_fp']} FP |")
         a(f"| Tap (20–40s) | {r['tap_n']} | {r['tap_mean']} | {r['tap_max']} | {r['tap_flagged']}/{r['tap_n']} |")
         a(f"| Post-tap (45–60s) | {r['post_n']} | {r['post_mean']} | {r['post_max']} | {r['post_fp']} (settling) |")
@@ -234,7 +236,7 @@ def write_section(stable_results, both_results):
     # ---- Group B ----
     a("### Group B — Both Hands Typing (hand\\_typing1, hand\\_typing2)")
     a("")
-    a(f"**Cross-file resting baseline** (from `moving6` pre-tap, 15 windows, cleanest stable file):")
+    a("**Cross-file resting baseline** (from `moving6` pre-tap, 15 windows, cleanest stable file):")
     a(f"  μ = {CROSS_FILE_REST_MU}, σ = {CROSS_FILE_REST_SIG}, threshold = **{CROSS_FILE_THR}**")
     a("")
     a("Both-hands-typing files have no isolated resting baseline within the file. "
@@ -245,8 +247,8 @@ def write_section(stable_results, both_results):
         a(f"#### `{r['file']}` — REFERENCE")
         a("")
         a("**Signal quality:**")
-        a(f"| Metric | Value |")
-        a(f"|---|---|")
+        a("| Metric | Value |")
+        a("|---|---|")
         a(f"| Duration | {r['dur']:.2f}s |")
         a(f"| Gap events / missed samples | {r['gaps']} / {r['missed']} |")
         a(f"| Drop rate | {r['drop_pct']}% |")
@@ -257,8 +259,8 @@ def write_section(stable_results, both_results):
         a(f"| ADC saturation (0 / 4095) | {r['sat_at_0']} / {r['sat_at_4095']} |")
         a("")
         a("**Motion characterisation:**")
-        a(f"| Metric | Value |")
-        a(f"|---|---|")
+        a("| Metric | Value |")
+        a("|---|---|")
         a(f"| Cross-file threshold (μ+2σ from moving6 rest) | {r['cross_threshold']} |")
         a(f"| % windows above threshold | {r['pct_windows_flagged']}% |")
         a(f"| Overall ACC std: mean / max | {r['acc_mean']} / {r['acc_max']} |")
@@ -290,8 +292,8 @@ def write_section(stable_results, both_results):
     for r in both_results:
         a(f"| `{r['file']}` | both-hands typing | {r['acc_mean']} | {r['acc_max']} | "
           f"intense zone {r['intense_zone_s']} |")
-    a(f"| `moving2` (prev session) | sensor-hand stable | 238.4 (tap) | 435.0 | PASS — used as Task 3 gate file |")
-    a(f"| `moving6` (prev session) | sensor-hand stable | 68.1 (tap) | 108.5 | Rest baseline source |")
+    a("| `moving2` (prev session) | sensor-hand stable | 238.4 (tap) | 435.0 | PASS — used as Task 3 gate file |")
+    a("| `moving6` (prev session) | sensor-hand stable | 68.1 (tap) | 108.5 | Rest baseline source |")
     a("")
     a("> **Scale insight:** Both-hands typing ACC std (mean 800–900, max 2950–3380) is "
       "**10–15× higher** than stable-hand files. This confirms the pipeline correctly "

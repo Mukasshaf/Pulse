@@ -3,11 +3,13 @@
 
 
 import argparse
-import sys
 import os
+import sys
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -18,13 +20,13 @@ FEATURE_COLS = [
 ]
 
 
-def pct_change(baseline_mean, stress_mean, baseline_std, eps=1e-6):
+def pct_change(baseline_mean: float, stress_mean: float, baseline_std: float, eps: float = 1e-6) -> float:
     
     denom = max(abs(baseline_mean), baseline_std, eps)
     return (stress_mean - baseline_mean) / denom * 100.0
 
 
-def compute_subject_pct_change(sid, features_dir="outputs/features"):
+def compute_subject_pct_change(sid: int, features_dir: str = "outputs/features") -> dict[str, Any] | None:
     path = Path(features_dir) / f"S{sid}_raw.csv"
     if not path.exists():
         return None
@@ -34,14 +36,15 @@ def compute_subject_pct_change(sid, features_dir="outputs/features"):
     if len(baseline) == 0 or len(stress) == 0:
         return None
 
-    row = {"sid": f"S{sid}"}
+    row: dict[str, Any] = {"sid": f"S{sid}"}
     for col in FEATURE_COLS:
-        row[col] = pct_change(baseline[col].mean(), stress[col].mean())
+        row[col] = pct_change(baseline[col].mean(), stress[col].mean(), baseline[col].std())
     return row
 
 
-def build_matrix(sids, features_dir="outputs/features"):
-    rows, skipped = [], []
+def build_matrix(sids: list[int], features_dir: str = "outputs/features") -> tuple[pd.DataFrame, list[int]]:
+    rows: list[dict[str, Any]] = []
+    skipped: list[int] = []
     for sid in sids:
         r = compute_subject_pct_change(sid, features_dir)
         if r is None:
@@ -53,7 +56,7 @@ def build_matrix(sids, features_dir="outputs/features"):
     return df, skipped
 
 
-def plot_heatmap(df, out_path="outputs/plots/batch_comparison_heatmap.png"):
+def plot_heatmap(df: pd.DataFrame, out_path: str = "outputs/plots/batch_comparison_heatmap.png") -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -62,7 +65,7 @@ def plot_heatmap(df, out_path="outputs/plots/batch_comparison_heatmap.png"):
     data = df.values
     vmax = max(np.nanpercentile(np.abs(data), 95), 10)
 
-    fig, ax = plt.subplots(figsize=(11, max(6, 0.4 * len(df))))
+    _, ax = plt.subplots(figsize=(11, max(6, 0.4 * len(df))))
     im = ax.imshow(data, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
 
     ax.set_xticks(range(len(df.columns)))
@@ -89,7 +92,7 @@ def plot_heatmap(df, out_path="outputs/plots/batch_comparison_heatmap.png"):
     print(f"Heatmap saved -> {out_path}")
 
 
-def feature_screening_report(df):
+def feature_screening_report(df: pd.DataFrame) -> None:
     subj_df = df.drop(index="Group Avg")
     print("\nFeature consistency (sign agreement across subjects):")
     print(f"{'feature':<14}{'group_avg%':>12}{'sign_agree%':>14}{'flag':>8}")

@@ -208,14 +208,14 @@ For each of the 14 scenarios, I checked:
 
 | Locked Decision | Status |
 |---|---|
-| Keyboard-only input (Keys 1,2,3,4 + Enter + Escape) | ✅ All 14 scenarios use key-number input |
+| Keyboard-only input (Keys 1,2,3,4 + SPACE/Enter + TAB/Q + Escape) | ✅ All 14 scenarios use key-number input |
 | No numerical scores in UI | ✅ All consequences are narrative text, not point tallies |
 | Deception metric scoped to `social_evaluation` only | ✅ Only 7A and 7B have `has_deception_metric=True` |
 | Jitter ≤3px, ≤2Hz | ✅ Referenced correctly in 1A and 7A |
 | No full-screen color inversions | ✅ Not present in any scenario |
 | No strobing >3Hz | ✅ Not present in any scenario |
 | Drone: 60–80Hz, final 1/3 of timer, ≤30% volume | ✅ Referenced in 1A and 7A |
-| 15s intra-domain rest, 60s inter-domain rest | ✅ Session flow diagram correct |
+| 15s intra-domain rest, 30s inter-domain rest (60s with `--extended-rest`) | ✅ Superseded 2026-10-02 by ADR-B2; the session flow diagram shows 30s |
 | Baseline 3 min (or `--fast-baseline` 10s) | ✅ Session flow correct |
 | Domain order randomized, all unconditional | ✅ Session flow correct |
 | Timeout → `TIMEOUT_NO_RESPONSE` + loss-of-agency consequence | ✅ Not contradicted by any scenario |
@@ -235,3 +235,55 @@ For each of the 14 scenarios, I checked:
 > **All 14 scenarios are fully aligned with their claimed research paradigms.** The re-framing changed only the narrative surface (context, setting, characters) — not the psychological active ingredients, interactive mechanics, or biosignal predictions. In 5 cases (2A, 4B, 5A, 5B, 6B), the new framing arguably *strengthens* ecological validity for the 15–25 age range.
 
 No corrective action required. The updated `domain_implementation_strategy.md` is research-verified and ready for implementation.
+
+---
+
+## Addendum (2026-10-02): Implementation Audit Against These Paradigms
+
+The verdict above verifies the scenario *designs*. An independent audit on 2026-10-02 checked the *implemented engine* against the same paradigms and found that several designs were not being delivered. Status after remediation:
+
+| Paradigm element | Found in code | Now |
+|---|---|---|
+| 60s HRV window per scenario (all domains) | Any keypress ended the scenario at 0ms | ✅ Choice held to timer expiry; priming floor keeps the active epoch ≥60s |
+| Resting baseline (reference for every z-score) | Paced breathing at 7.5 breaths/min, which inflates resting RMSSD/SDNN | ✅ Static fixation cross, spontaneous breathing |
+| Deception inherent to MIST / Asch / TSST | Paradigm name and citation printed on the priming card; "[CONFORM]", "TSST PROTOCOL", "MARSHMALLOW PARADIGM" on screen | ✅ Removed from all participant-facing text |
+| 1A MIST: sustained time-pressured arithmetic | Ended after 4 answers; correct key cycled 1-2-3-4; "Peer average: 115%" | ✅ Runs on the clock, randomised positions, figure capped at 100%. ✅ Difficulty now adapts in-run (second addendum) |
+| 3B delay discounting: the delay itself | "Request more time" never waited | ✅ 15s `POST_WAIT` on Key 2 |
+| 7A/7B biofeedback amplification | No sensor bridge exists; bar showed hard-coded readings; a single noisy sample dropped it 15% | ✅ Honest STANDBY, 3-sample + 5s cooldown gating. ✅ A real bridge now exists (second addendum). ⚠ Not yet run on the physical sensor |
+| 4B BART | Single balloon, expected 3.5 safe pumps, certain burst by pump 13 | ✅ Decided and retuned (second addendum). ⚠ Still a single balloon, by design |
+| 4A IGT | One-shot choice between described risks with a fixed outcome per option; no learning from feedback | ✅ Relabelled honestly (second addendum). ⚠ Still not the IGT, by design |
+| Locked decision: 60s inter-domain rest | Code uses 30s since commit `aeee93d` | ✅ Resolved: 30s default, 60s optional (second addendum) |
+
+Rows marked ⚠ mean the "fully aligned" verdict above does not hold for the running engine in those respects; the second addendum says exactly how far each one goes.
+
+---
+
+## Second Addendum (2026-10-02): Decisions on the Open Paradigm Questions
+
+The five ⚠ rows above were decided and implemented (ADR-B1…B4 in `Decisions.md`). This section states what each scenario now delivers against its cited paradigm, and what it does not.
+
+### The governing decision: one acute-stress window per scenario (ADR-B4)
+
+The pipeline's classifier computes RMSSD and SDNN over 60-second windows, and a session has to cover seven domains without fatiguing the participant. So every scenario is one uninterrupted priming → decision → feedback epoch of at least 60 seconds. Paradigms whose classic form is a long series of discrete trials (BART: about 30 balloons; IGT: 100 draws; MIST: several multi-minute blocks) cannot keep that form here. Each scenario keeps the paradigm's stress mechanism and gives up its trial structure. That is a deliberate trade, and it limits what can be claimed: Pulse's scenarios are *derived from* these paradigms; behavioural indices from the literature (adjusted pumps, net IGT score, MIST block accuracy) are not reproduced and must not be compared with published norms.
+
+### Per-paradigm status
+
+| Scenario | What the paradigm requires | What the engine delivers | Verdict |
+|---|---|---|---|
+| **1A MIST** (Dedovic et al., 2005) | Arithmetic under a time limit that adapts to the individual so that failure stays frequent; visible comparison with a better-performing peer group | A 40s run of problems, each with its own countdown starting at 8s: −10% after two consecutive correct answers, +10% after two consecutive failures, bounds 3–12s. Time-outs count as failures. Peer bar always ahead; peer figure capped at 100% | ✅ Mechanism present. ⚠ The original calibrates on a training run and targets a 20–45% success rate over minutes; here adaptation happens inside 40s, so only a few steps occur per participant. Whether the failure rate reaches the intended range is an empirical question for the pilot (`item_limit_ms` and `timed_out` are logged for it) |
+| **4A** (payoff structure after the IGT, Bechara et al., 1994) | IGT: repeated draws from four decks, learning from gains and losses, anticipatory SCR developing over trials | One choice among three described strategies with stated averages, stated variance and partly missing history; fixed outcome per option | ⚠ **Not the IGT, and no longer labelled as one.** The registry now reads "One-shot risky choice under ambiguity (payoff structure after the Iowa Gambling Task)". The supported claim is narrower: arousal while deciding under described risk with missing information (closer to an Ellsberg-type ambiguity choice). The somatic-marker finding about anticipatory SCR *developing through experience* does not transfer |
+| **4B BART** (Lejuez et al., 2002) | Repeated pumps, each raising both payoff and burst risk; total loss on burst; many balloons | One balloon in one 45s window. Hazard 2% on the first pump, +3 points per pump, certain on the fifteenth (about six expected safe pumps); each pump takes 1.5s; every pump logs its hazard, payoff and latency | ✅ Escalating commitment with total loss is intact, and risk now builds across the window instead of ending within three presses. ⚠ Single balloon: no averaging over balloons, no learning across balloons |
+| **7A / 7B** biofeedback amplification (Wieser et al., 2010) on a TSST-type evaluative threat | The participant sees a display that tracks their own arousal | The composure bar is driven by the wrist accelerometer through `SerialBridge` (live) or `ReplayBridge` (following the recorder's file), gated at μ + 1.5σ of the resting baseline with a 3-sample / 5s rule. Without live data the display says STANDBY | ✅ Implemented. ⚠ Verified against simulated ports and recorded rows only; the loop has not been observed on a participant. A session logged with `bridge: StubBridge` delivered evaluative threat without biofeedback and must be analysed as such |
+| **Inter-domain recovery** | Enough time for tonic arousal to return toward baseline before the next domain | 30s by default; 60s with `--extended-rest` | ⚠ See below |
+
+### Inter-domain rest: what 30 seconds does and does not buy (ADR-B2)
+
+- Heart rate and phasic skin conductance responses recover within seconds to tens of seconds; tonic skin conductance level and vagally mediated HRV can take longer, particularly after the social-evaluative domain. 30s is therefore a partial wash-out, not a return to baseline.
+- What protects the analysis is not the rest length alone: every feature is z-scored against the participant's own 3-minute resting baseline, not against the preceding rest; and domain order is randomised per session with the seed logged, so carry-over is spread across domains over participants instead of always favouring the same one.
+- The cost of the longer rest is small in absolute terms — six rests per session, so 60s instead of 30s adds 3 minutes (about 24 → 27 minutes). The earlier figure of "14 minutes of idle waiting" was a miscount. The case for the 30s default is therefore session length, engagement and drowsiness over a run of rests, not a large time saving.
+- Because the choice is logged (`SYNC_PULSE.inter_domain_rest_s`, `REST_START.duration_s`), sessions run with either value can be told apart, and a carry-over check is possible: compare the first 30s of each domain with the preceding rest and with domain position.
+- If a protocol needs domain-level HRV to be free of carry-over without relying on counterbalancing, use `--extended-rest`.
+
+### Revised verdict
+
+All 14 scenarios deliver the stress mechanism their design cites. Two of them (4A, 4B) do so in a deliberately reduced form that is not the cited task, one (1A) adapts on a shorter timescale than the original, and Domain 7's biofeedback is implemented but unproven on hardware. None of these blocks data collection; each bounds what the results may be said to show.

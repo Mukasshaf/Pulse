@@ -22,11 +22,15 @@ class BridgeInterface(Protocol):
     """Protocol defining required data polling methods for hardware bridge."""
 
     def get_latest_sample(self) -> SensorSample | None:
-        """Drain queue and return the most recent sample, or None if empty."""
+        """Return the most recent unread sample, or None if nothing new has arrived."""
         ...
 
     def get_mpu_variance(self) -> float | None:
-        """Return rolling Z-axis variance over last 1s window, or None if no data."""
+        """Return rolling 1s variance of 3-axis acceleration magnitude, or None if no live data."""
+        ...
+
+    def close(self) -> None:
+        """Release the underlying port, thread, and files. Idempotent."""
         ...
 
 
@@ -40,3 +44,6 @@ class StubBridge:
     def get_mpu_variance(self) -> float | None:
         """Return None unconditionally."""
         return None
+
+    def close(self) -> None:
+        """Nothing to release."""

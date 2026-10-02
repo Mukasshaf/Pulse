@@ -1,6 +1,8 @@
 # Spec Verification Report — Pulse/specs/
 
 > Cross-consistency audit of all 6 specification files. 3 issues found and fixed.
+>
+> **Reading note (2026-10-02):** the eight checks below are the original pre-implementation audit and are kept as a record. Line numbers and a few quoted values in them (the BART parameters in check 6, the timer colours in check 8) describe the specs as they were then. The two addenda at the end describe the current state.
 
 ---
 
@@ -152,3 +154,59 @@ Spot-checked:
 ## Verdict
 
 All 6 spec files are now **mutually consistent** and ready for handover to Antigravity IDE for implementation.
+
+---
+
+## Addendum (2026-10-02): Spec-vs-Code Verification After the Independent Audit
+
+This report verified the specs against each other. The 2026-10-02 audit verified the code against the specs and found that several specified behaviours had never been implemented. After remediation:
+
+| Specified behaviour | Before | After |
+|---|---|---|
+| C1 — DECISION holds for the full timer | Not implemented (instant exit) | ✅ Implemented (`hold_full_decision`, on in `main.py`) |
+| M3 — focus loss freezes timers and audio | Not implemented | ✅ Implemented |
+| `CLOCK_ANOMALY`, `FOCUS_LOST`, `FOCUS_GAINED` events | Defined, never emitted | ✅ Emitted |
+| Composure gating: 3 consecutive samples + 5s cooldown | Constants defined, never used | ✅ Implemented |
+| `COMPASS_SPIN_MAX_RPM`, jitter ≤2Hz | Exceeded (40 RPM, 3Hz axis) | ✅ Enforced |
+| `impulsivity_gratification_b` 15s POST_WAIT on Key 2 | Unreachable | ✅ Implemented |
+| `mypy --strict` clean (Gate 2) | 5 errors | ✅ Clean; `ruff check src/game tests/game` also clean |
+| `calibrate_mist_difficulty()` pretest (C4) | Not implemented | ✅ Superseded: difficulty adapts in-run (`MISTRunner` per-item countdown); the pretest was removed from the specs (ADR-B3) |
+| `SerialBridge` for Domain 7 (C3) | Not implemented | ✅ Implemented (`sensor_bridge.py`, ADR-B1). Not yet run on the physical ESP32 |
+| `social_evaluation_b` decision 46s (C5) | Code uses 45s | ✅ Specs aligned to 45s (ADR-B3) |
+| Inter-domain rest 60s | Code uses 30s | ✅ Decided: 30s default, 60s with `--extended-rest`; `Decisions.md` updated (ADR-B2) |
+| Priming 5–10s | Code uses 20s | ✅ Specs aligned to 20s for all 14 scenarios (ADR-B3) |
+| Gate 1: files ≤500 lines | `ui.py` ~3,280, `engine.py` ~600 | ✅ Split; every file in `src/` and `tests/` is ≤500 lines (ADR-B6). The 60-line function rule is still unmet for the skin methods |
+
+The specs were updated on 2026-10-02 to describe the remediated behaviour. The six rows that were open at that point were closed in the following round (second addendum); what is still open is tracked in ARCHITECTURE_SPEC §7.3.
+
+---
+
+## Second Addendum (2026-10-02): Machine Check of the Specs Against the Code
+
+After the open-issues round, `DATA_MODELS_AND_CONTRACTS.md` was checked against the running code by script rather than by eye. Each documented item was parsed out of the spec and compared with the imported module:
+
+| Check | Compared | Result |
+|---|---|---|
+| Constants (§7) | 79 values, each against `src/game/constants.py`; also every public constant in the module must appear in the spec | ✅ 79 equal, none undocumented |
+| Enumerations (§1) | `EngineState` (10), `EventType` (22), `ScenarioType` (5), `DomainID` (7): names and values | ✅ identical |
+| Transitions (§8) | `VALID_TRANSITIONS` adjacency dict | ✅ identical |
+| Dataclasses (§2) | 13 classes: field order, names, annotations, defaults, `frozen` flag | ✅ identical (`Scenario` 22 fields, `SessionConfig` 11) |
+| Public API (§5) | 99 documented function, method and class names must exist in `src/game/` | ✅ all present |
+| Exceptions (§6) | Documented classes against the `PulseEngineError` hierarchy, both directions | ✅ identical (7 classes incl. `BridgeUnavailableError`) |
+
+Result: **0 discrepancies.** The check is a script, not a test in the suite; rerun it after any change to the contracts.
+
+Cross-document consistency for the values changed in this round:
+
+| Value | ARCHITECTURE_SPEC | DATA_MODELS | TEST_CRITERIA | Strategy / Design | Code |
+|---|---|---|---|---|---|
+| Priming duration | 20s (§5, §6) | `DEFAULT_PRIMING_DURATION_S = 20` | locked-durations test | 20s on all 14 scenarios | 20 |
+| Decision duration | 45s / 40s MIST (§6) | `DEFAULT_DECISION_DURATION_S = 45`, `MIST_DECISION_DURATION_S = 40` | locked-durations test | 45s (40s for 1A) | 45 / 40 |
+| Inter-domain rest | 30s, 60s extended (§5 Rule 6, §6) | `INTER_DOMAIN_REST_S = 30`, `…_EXTENDED_S = 60` | §2.10 | 30s in the session flow | 30 / 60 |
+| BART hazard | `0.02 + 0.03·(k−1)`, certain at 15 (§3) | `BART_BURST_PROB_BASE = 0.02`, `…_INCREMENT = 0.03`, `BART_MAX_PUMPS = 15` | §2.7, B-01 | 2% → 41%, fifteenth certain | same |
+| BART pacing | 1.5s cooldown (§5 Rule 3) | `BART_PUMP_COOLDOWN_MS = 1500` | B-07…B-09 | "PUBLISHING POST..." | 1500 |
+| MIST adaptation | 8s start, ±10% per 2-streak, 3–12s (§5 Rule 3) | `MIST_ITEM_LIMIT_*`, `MIST_ADAPT_*` | M-07…M-11 | same | same |
+| Palette | §6.1 token table | §7 colour block | §2.11 | palette map | `constants.py` |
+| Test count | 104 game tests in 12 modules | — | 107 total | — | `uv run pytest`: 107 passed |
+
+Known remaining mismatches between the standards and the code are listed in ARCHITECTURE_SPEC §7.3 (function length; one 542-line validation script).

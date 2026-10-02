@@ -1,9 +1,10 @@
 
 
 import pickle
-import numpy as np
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 
 #  Sampling rates 
 FS = {
@@ -24,7 +25,7 @@ LABEL_NAMES = {
 
 
 #  Core loader 
-def load_subject(subject_id: int, data_dir: str | Path = "data/WESAD") -> dict:
+def load_subject(subject_id: int, data_dir: str | Path = "data/WESAD") -> dict[str, Any]:
     
     pkl_path = Path(data_dir) / f"S{subject_id}" / f"S{subject_id}.pkl"
 
@@ -68,12 +69,13 @@ def _resample_labels(labels_src: np.ndarray, fs_src: int,
     dst_indices = np.arange(target_len)
     src_indices = np.round(dst_indices * (fs_src / fs_dst)).astype(int)
     src_indices = np.clip(src_indices, 0, n_src - 1)
-    return labels_src[src_indices]
+    resampled: np.ndarray = labels_src[src_indices]
+    return resampled
 
 
 # ── Condition extraction ─────────────────────────────────────────────────────
-def get_condition_segments(subject: dict, signal: str = "bvp",
-                           condition: int = 2) -> list[dict]:
+def get_condition_segments(subject: dict[str, Any], signal: str = "bvp",
+                           condition: int = 2) -> list[dict[str, Any]]:
    
     sig_data = subject[signal]
     sig_labels = subject["labels"][signal]
@@ -97,22 +99,24 @@ def get_condition_segments(subject: dict, signal: str = "bvp",
     return segments
 
 
-def get_baseline(subject: dict, signal: str = "bvp") -> np.ndarray:
+def get_baseline(subject: dict[str, Any], signal: str = "bvp") -> np.ndarray:
     segs = get_condition_segments(subject, signal=signal, condition=1)
     if not segs:
         raise ValueError(f"No baseline (label=1) found for S{subject['sid']} / {signal}")
-    return segs[0]["data"]
+    first: np.ndarray = segs[0]["data"]
+    return first
 
 
-def get_stress(subject: dict, signal: str = "bvp") -> np.ndarray:
+def get_stress(subject: dict[str, Any], signal: str = "bvp") -> np.ndarray:
     segs = get_condition_segments(subject, signal=signal, condition=2)
     if not segs:
         raise ValueError(f"No stress (label=2) found for S{subject['sid']} / {signal}")
-    return segs[0]["data"]
+    first: np.ndarray = segs[0]["data"]
+    return first
 
 
-#  Summary 
-def summary(subject: dict) -> None:
+#  Summary
+def summary(subject: dict[str, Any]) -> None:
     sid = subject["sid"]
     fs  = subject["fs"]
 

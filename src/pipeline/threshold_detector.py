@@ -1,19 +1,20 @@
 
 
-import sys
 import os
+import sys
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject
 from preprocess import preprocess_subject
-
+from wesad_loader import load_subject
 
 #  GSR threshold 
 
-def gsr_baseline_stats(preprocessed: dict) -> dict:
+def gsr_baseline_stats(preprocessed: dict[str, Any]) -> dict[str, float]:
     scr    = preprocessed["eda"]["scr"]
     labels = preprocessed["labels"]["eda"]
     baseline_scr = scr[labels == 1]
@@ -24,7 +25,7 @@ def gsr_baseline_stats(preprocessed: dict) -> dict:
     return {"mu": float(np.mean(baseline_scr)), "sigma": float(np.std(baseline_scr, ddof=1))}
 
 
-def flag_gsr_events(preprocessed: dict, k: float = 2.0) -> dict:
+def flag_gsr_events(preprocessed: dict[str, Any], k: float = 2.0) -> dict[str, Any]:
   
     stats = gsr_baseline_stats(preprocessed)
     threshold = stats["mu"] + k * stats["sigma"]
@@ -39,7 +40,7 @@ def flag_gsr_events(preprocessed: dict, k: float = 2.0) -> dict:
 
 #  HR threshold 
 
-def hr_baseline_mean(preprocessed: dict) -> float:
+def hr_baseline_mean(preprocessed: dict[str, Any]) -> float:
     ibi_ms  = preprocessed["peaks"]["ibi_ms"]
     ibi_idx = preprocessed["peaks"]["ibi_idx"]
     labels  = preprocessed["labels"]["bvp"]
@@ -53,8 +54,8 @@ def hr_baseline_mean(preprocessed: dict) -> float:
     return float(60000.0 / np.mean(baseline_ibi))
 
 
-def flag_hr_events(preprocessed: dict, pct: float = 0.10,
-                   window_s: float = 10.0) -> dict:
+def flag_hr_events(preprocessed: dict[str, Any], pct: float = 0.10,
+                   window_s: float = 10.0) -> dict[str, Any]:
 
     baseline_hr = hr_baseline_mean(preprocessed)
     threshold_hi = baseline_hr * (1 + pct)
@@ -102,18 +103,18 @@ def flag_hr_events(preprocessed: dict, pct: float = 0.10,
 
 # Onset latency validation 
 
-def find_condition_onset(preprocessed: dict, signal: str = "eda",
+def find_condition_onset(preprocessed: dict[str, Any], signal: str = "eda",
                          condition: int = 2) -> float:
     labels = preprocessed["labels"][signal]
     fs = preprocessed["fs"][signal]
     idx = np.where(labels == condition)[0]
     if len(idx) == 0:
         raise ValueError(f"Condition {condition} not found in {signal} labels.")
-    return idx[0] / fs
+    return float(idx[0] / fs)
 
 
-def measure_gsr_latency(preprocessed: dict, k: float = 2.0,
-                        search_window_s: float = 30.0) -> dict:
+def measure_gsr_latency(preprocessed: dict[str, Any], k: float = 2.0,
+                        search_window_s: float = 30.0) -> dict[str, Any]:
    
     onset_s = find_condition_onset(preprocessed, signal="eda", condition=2)
     fs_eda  = preprocessed["fs"]["eda"]
@@ -132,8 +133,8 @@ def measure_gsr_latency(preprocessed: dict, k: float = 2.0,
     return {"onset_s": onset_s, "latency_s": float(latency_s), "detected": True}
 
 
-def measure_hr_latency(preprocessed: dict, pct: float = 0.10,
-                       search_window_s: float = 30.0) -> dict:
+def measure_hr_latency(preprocessed: dict[str, Any], pct: float = 0.10,
+                       search_window_s: float = 30.0) -> dict[str, Any]:
    
     onset_s = find_condition_onset(preprocessed, signal="bvp", condition=2)
     hr = flag_hr_events(preprocessed, pct=pct)
@@ -152,7 +153,7 @@ def measure_hr_latency(preprocessed: dict, pct: float = 0.10,
 
 #  Summary / CLI 
 
-def summary(preprocessed: dict) -> dict:
+def summary(preprocessed: dict[str, Any]) -> dict[str, Any]:
     sid = preprocessed["sid"]
 
     gsr = flag_gsr_events(preprocessed)
@@ -172,7 +173,7 @@ def summary(preprocessed: dict) -> dict:
     print(f"       flagged windows: {hr['flags'].sum()} / {len(hr['flags'])} "
           f"({hr['flags'].mean()*100:.2f}%)")
 
-    print(f"\n  Onset latency (stress condition transition):")
+    print("\n  Onset latency (stress condition transition):")
     if gsr_lat["detected"]:
         print(f"    GSR: onset={gsr_lat['onset_s']:.1f}s  "
               f"latency={gsr_lat['latency_s']:.1f}s  "

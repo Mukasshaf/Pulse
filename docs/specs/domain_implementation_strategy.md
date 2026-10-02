@@ -1,4 +1,4 @@
-## type: implementation-strategy status: active updated: 2026-09-17
+## type: implementation-strategy status: active updated: 2026-10-02
 
 # Pulse — 7 Domain Implementation Strategy
 
@@ -9,10 +9,26 @@ Research-grounded scenario designs for each behavioral domain. Every mechanic is
 ## Session Flow
 
 ```
-Baseline (3 min) → [Domain A → Scenario 1 → 15s rest → Scenario 2 → 60s rest] × 7 domains → Debrief
+Baseline (3 min) → [Domain A → Scenario 1 → 15s rest → Scenario 2 → 30s rest] × 7 domains → Debrief
 ```
 
 All domains presented in **randomized order**, all unconditional. Keyboard-only input. No scores. No music during active scenarios.
+
+### Timing Contract (locked 2026-10-02 — ADR-B2, ADR-B3)
+
+| Phase | Duration | Notes |
+|---|---|---|
+| Baseline | 180s | Static fixation cross, spontaneous breathing |
+| Priming | **20s, all 14 scenarios** | A text briefing that has to be read and taken in. SPACE may shorten it only after the read floor (11s for 45s scenarios, 16s for the MIST run), so priming + decision + feedback never falls below 60s |
+| Decision | **45s** (13 scenarios); **40s** for `academic_pressure_a` | Always runs to the end of the window: a keypress commits the choice, the screen holds |
+| Post-decision wait | 12s / 10s (`future_uncertainty` A / B); 15s after Key 2 in `impulsivity_gratification_b` | No information revealed |
+| Consequence | 4s | |
+| Intra-domain rest | 15s | Between Scenario A and B |
+| Inter-domain rest | **30s** by default; 60s with `--extended-rest` | Six rests per session, so the extended option adds 3 minutes |
+
+One scenario is therefore 69s of continuous priming → decision → feedback (64s for the MIST run), which contains at least one full 60s HRV feature window. A complete session is about 24 minutes (27 with extended rest). These values are defined once in `src/game/constants.py`; `scenarios.py` holds no duration literal and a test locks them.
+
+**The 60-second acute-stress wrapper takes precedence over multi-trial paradigms (ADR-B4).** The classic forms of several paradigms used here are repeated-trial tasks (30 balloons in the BART, 100 card draws in the IGT, dozens of MIST items across blocks). They cannot be run that way inside this protocol: the classifier needs an uninterrupted ≥60s window per stressor for RMSSD/SDNN, and seven domains must fit in one session without fatigue. Each scenario therefore keeps the paradigm's *stress mechanism* and drops its *trial structure*. Where that changes what the scenario is, the scenario says so below (Domain 4).
 
 ---
 
@@ -36,25 +52,27 @@ Combines **cognitive overload** with **social-evaluative threat** — the partic
 
 **Paradigm basis:** MIST arithmetic stress (Dedovic et al., 2005)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Your semester final grade / GPA hinges on this assessment. You have 40 seconds. The system will compare your results against other participants."*
 
-*Note on Adaptive Difficulty Calibration (Dedovic et al., 2005):* Immediately before the countdown begins, participants complete 3 untimed practice problems (`calibrate_mist_difficulty()`) to establish starting tier (`easy`, `medium`, or `hard`), ensuring the session targets the validated ~45–50% error rate across varying arithmetic skills.
+*Adaptive difficulty (Dedovic et al., 2005) — in-run, ADR-B3:* the MIST keeps each participant near their own failure point by adjusting the time allowed per item. Here every problem has its own countdown, starting at 8s. Two consecutive correct answers tighten it by 10%; two consecutive incorrect or timed-out answers ease it by 10%; it stays within 3–12s. An item that runs out is scored as a failure and replaced. A fast, accurate participant is therefore pushed toward time-outs and a slower one is not simply overwhelmed. This replaces the 3-problem pretest described in earlier drafts: a pretest adds an unscored block before the stressor, lengthens the session, and tells the participant that difficulty is being tuned. The sequence of limits is logged per item (`item_limit_ms`), so the difficulty each participant actually faced is known. Whether this lands at the MIST's 45–50% failure rate in this population has not been measured yet; the pilot data will show it.
 
 **Decision phase (40s):**
-A rapid-fire sequence of **4 arithmetic problems** presented one at a time. Each problem has 4 answer options (keys `1`, `2`, `3`, `4`). A visible countdown timer ticks down for the entire sequence. After each answer (right or wrong), the next problem appears immediately.
+A rapid-fire sequence of arithmetic problems presented one at a time for the whole 40s. Each problem has 4 answer options (keys `1`, `2`, `3`, `4`). A visible countdown timer ticks down for the entire sequence, and a second, per-item bar under the question drains toward that item's time limit. After each answer (right, wrong or timed out), the next problem appears immediately.
 *(Note: Per C1 architectural contract, the DECISION state holds for the full 40s to guarantee the required 60s active epoch for ML classification).*
+*(Implementation 2026-10-02: the engine generates 60 problems at DECISION entry so the sequence runs until the timer expires — answering 4 quickly no longer ends the task. The correct option position is randomised, not cycled 1-2-3-4. The scenario registry still stores 4 problems.)*
 
 **Stress mechanics:**
 - A fake **"Peer Average" progress bar** sits at the top of the screen, always slightly ahead of the participant's position — creating the impression of underperformance (MIST's core manipulation).
 - Timer bar transitions green → amber → red with the locked diegetic tension drone kicking in during the final third.
 - Subtle text jitter (≤3px, ≤2Hz) activates on the last 2 problems.
-- If the participant gets one wrong, a brief red flash on the answer button (200ms, no full-screen flash).
+- If the participant gets one wrong, or lets an item run out, a brief red mark on the question (200ms, no full-screen flash).
+- The per-item bar turns Rosso Corsa in the last quarter of each item's time.
 
 **Consequence (4s):**
 > *"Assessment complete. Your accuracy: [X]%. Peer average: [X+15]%. Results have been logged."*
 
-The peer average is always shown as higher regardless of actual performance — this is the MIST's validated social-comparison manipulation.
+The peer average is always shown as higher regardless of actual performance — this is the MIST's validated social-comparison manipulation. The displayed figure is capped at 100% (a participant at 86% or above sees "Peer average: 100%"), because an impossible "115%" exposes the manipulation.
 
 ---
 
@@ -62,7 +80,7 @@ The peer average is always shown as higher regardless of actual performance — 
 
 **Paradigm basis:** Evaluative observation paradigm (Geen, 1991) — the *anticipation* of judgment is the stressor, not time pressure.
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You've been called before your school's academic integrity committee following an incident during your last exam. You must submit a written statement. The committee's decision will affect your academic standing — it is final."*
 
 **Decision phase (45s):**
@@ -100,10 +118,10 @@ The stress arises from **normative social influence** — the conflict between p
 
 **Paradigm basis:** Digital Asch conformity (Stoll et al., 2022; Berns et al., 2005)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Your friend group is deciding in a chat whether to share a private video of a classmate. Four friends have already voted. You are the last to respond."*
 
-**Decision phase (35s):**
+**Decision phase (45s):**
 The screen shows a simulated group chat with **4 friend avatars**, each displaying their choice. All 4 unanimously selected **"Share it — it's already going around anyway"** (conforming). The participant must now respond:
 
 - **Option 1 (Key 1):** Agree — share it *(conforming)*
@@ -128,10 +146,10 @@ Both outcomes carry negative implications — there's no "safe" choice.
 
 **Paradigm basis:** Taboo trade-off paradigm (Tetlock et al., 2000) — forced attribution of blame violates social fairness norms.
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Your team project received a failing grade. The instructor says one team member must be identified as responsible for the core section that failed. The rest of the team has already submitted their assessment."*
 
-**Decision phase (40s):**
+**Decision phase (45s):**
 The screen shows the team's submitted assessments — all 4 teammates have identified **you** as the responsible party. You must now respond:
 
 - **Option 1 (Key 1):** Accept responsibility to preserve team harmony
@@ -163,7 +181,7 @@ Measures **self-regulation and executive control** — the tension between the "
 
 **Paradigm basis:** Real-time waiting task / digital Marshmallow Test (McGuire & Kable, 2012, *PLOS ONE*)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You've unlocked a reward chest. You can claim it now for a small payout, or wait as the value multiplies. But the chest is unstable — it could collapse at any moment, and you'd lose everything."*
 
 **Decision phase (45s):**
@@ -172,7 +190,7 @@ The screen shows a **visually accumulating reward counter** (a progress bar that
 - **Key 1: "CLAIM NOW"** — locks in the current value immediately
 - **Key 2: "KEEP WAITING"** — continues accumulation but risk increases
 
-The reward counter visibly accelerates (creating increasing temptation), and a subtle **instability indicator** (a slight screen vibration that intensifies over time, ≤3px) signals growing risk of collapse. The actual collapse point is randomized between 20–40 seconds.
+The reward counter visibly accelerates (creating increasing temptation), and a subtle **instability indicator** (a slight screen vibration that intensifies over time, ≤2px and ≤2Hz) signals growing risk of collapse. The actual collapse point is randomized between 20–40 seconds. A claim or a collapse is logged at once, and the resulting screen is held until the 45s timer expires (C1).
 
 **Stress mechanics:**
 - The participant must *actively* resist pressing "CLAIM NOW" — this is the impulse suppression that produces sustained sympathetic activation.
@@ -190,16 +208,16 @@ The reward counter visibly accelerates (creating increasing temptation), and a s
 
 **Paradigm basis:** Kirby Monetary Choice Questionnaire (Kirby et al., 1999)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You've finished a draft of your assignment. You can submit it now for a guaranteed adequate grade, or spend more time refining it — which could significantly improve your grade, but might also make things worse if you second-guess yourself."*
 
-**Decision phase (35s):**
+**Decision phase (45s):**
 A single, clear binary choice:
 
 - **Key 1:** Submit now — guaranteed **"Adequate — Requirements Met"**
 - **Key 2:** Request more time — outcome unknown, could be **"Excellent"** or **"Needs significant revision"**
 
-If the participant chooses to wait (Key 2), a 15-second waiting screen appears with a *"Reviewing additional changes..."* message and a slowly spinning indicator. No information about the outcome is revealed during the wait — this combines delayed gratification with future uncertainty.
+If the participant chooses to wait (Key 2), a 15-second waiting screen appears with a *"Reviewing additional changes..."* message and a slowly spinning indicator. No information about the outcome is revealed during the wait — this combines delayed gratification with future uncertainty. *(Implemented 2026-10-02: before this date the wait never ran. The engine now enters `POST_WAIT` for Key 2 of the `DELAY_WAIT` scenario only; the outcome is drawn from the session-seeded RNG.)*
 
 **Consequence (4s):**
 - If submitted immediately: *"Grade recorded: Adequate — Requirements Met."*
@@ -210,7 +228,7 @@ If the participant chooses to wait (Key 2), a 15-second waiting screen appears w
 ## Domain 4: Risk-Reward Tradeoff (`risk_reward`)
 
 ### Core Mechanism
-Activates the **somatic marker system** — the body generates anticipatory physiological signals (especially anticipatory SCR) *before* consciously recognizing a choice as risky. Grounded in the Iowa Gambling Task (Bechara et al., 1994, 1997) and the Balloon Analogue Risk Task (Lejuez et al., 2002).
+Activates the **somatic marker system** — the body generates anticipatory physiological signals (especially anticipatory SCR) *before* consciously recognizing a choice as risky. Grounded in the somatic-marker work around the Iowa Gambling Task (Bechara et al., 1994, 1997) and in the Balloon Analogue Risk Task (Lejuez et al., 2002). Neither task is run in its multi-trial form here (see "Timing Contract" above): Scenario A is a single described-risk choice, Scenario B a single balloon.
 
 > **Key finding:** Bechara et al. (1997, *Science*) demonstrated that anticipatory skin conductance responses rise before selecting from "bad" decks — even before participants can consciously articulate which decks are dangerous. This anticipatory GSR is the strongest and most replicable physiological finding in risk decision-making.
 
@@ -226,53 +244,58 @@ Activates the **somatic marker system** — the body generates anticipatory phys
 
 ### Scenario A: "Tournament Strategy" — Factor: Ambiguous Probabilities + Potential for Large Loss
 
-**Paradigm basis:** Iowa Gambling Task (Bechara et al., 1994)
+**Paradigm basis:** One-shot risky choice under ambiguity. The payoff structure (a safe low-yield option against high-yield options with hidden losses) follows the Iowa Gambling Task (Bechara et al., 1994), but this is **not** the IGT: there are no repeated draws and nothing is learned from feedback. What it shares with the IGT literature is the target — anticipatory arousal while weighing an option whose downside is not fully known.
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You're competing in an online tournament with limited attempts remaining. Three strategies are available. Historical performance data for each approach is incomplete — some strategies carry hidden risks. Your final ranking will be recorded."*
 
-**Decision phase (40s):**
+**Decision phase (45s):**
 Three strategy options are displayed, each with partial information:
 
 - **Strategy A (Key 1):** Safe, consistent approach — *"Low variance, reliable 8% average score improvement per round"*
 - **Strategy B (Key 2):** Aggressive approach — *"High variance, avg 22% improvement, [2 rounds of data missing]"*
 - **Strategy C (Key 3):** Experimental approach — *"Extreme variance, avg 45% improvement, [4 rounds of data missing]"*
 
-The missing data is the critical manipulation — it maps directly to the IGT's hidden loss structure. The participant must decide how much risk to accept *without full information*.
+The missing data is the critical manipulation — it stands in for the IGT's hidden loss structure, with the difference that here the ambiguity is described, not experienced. The participant must decide how much risk to accept *without full information*.
 
 **Stress mechanics:**
 - The incomplete data forces a gut-level risk assessment — this is exactly where anticipatory SCR activates.
 - Timer bar provides moderate time pressure (not extreme — the deliberation itself is the measurement window).
 
 **Consequence (4s):**
-Outcome is probabilistic:
-- Strategy A: Always returns moderate gain.
-- Strategy B: 60% chance of high gain, 40% chance of moderate loss.
-- Strategy C: 40% chance of very high gain, 60% chance of severe loss (*"Critical error: Ranking dropped significantly"*).
+As built, the outcome is fixed per option (earlier drafts described a probabilistic draw; it was never implemented):
+- Strategy A: *"Tournament updated: Moderate gain realized as projected."*
+- Strategy B: *"Tournament updated: Volatility triggered an unhedged loss."*
+- Strategy C: *"Critical error: Ranking dropped significantly."*
+
+The measurement window is the 45s of deliberation and the held choice, not the outcome line. If a probabilistic outcome is wanted later it must be drawn from the session-seeded RNG and logged.
 
 ---
 
 ### Scenario B: "Viral Post Escalation" — Factor: Escalation of Commitment + Sunk Cost
 
-**Paradigm basis:** BART (Lejuez et al., 2002) — each additional "pump" increases both reward and risk.
+**Paradigm basis:** Single-balloon BART (Lejuez et al., 2002) — each additional "pump" increases both reward and risk. The standard BART averages adjusted pumps over about 30 balloons; here one balloon fills one 45s window (ADR-B4), so the behavioural measure is the stopping point and the per-pump latencies of that one run, and the physiological measure is the window as a whole.
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You've been posting increasingly bold content online. Each post gets more attention — but the risk of being reported and losing access to your account grows with every step. You can stop now, or push further."*
 
-**Decision phase (40s):**
+**Decision phase (45s):**
 A **reach meter** shows the participant's accumulated audience. Two options are always visible:
 
 - **Key 1: "STOP POSTING"** — locks in current reach, ends the run
 - **Key 2: "POST ANOTHER"** — gains more reach but visibly increases a "Report Risk" gauge
 
-The participant can press Key 2 multiple times (each press adds to the reach but raises the instability gauge). They can press Key 1 at any point to exit. If the report risk gauge hits critical, an "Account Suspended" event triggers and all accumulated reach is lost.
+The participant can press Key 2 multiple times (each press adds to the reach but raises the instability gauge). They can press Key 1 at any point to exit. A post may trigger an "Account Suspended" event, and then all accumulated reach is lost.
 
 This directly translates the BART's escalating-commitment mechanic into a keyboard-only interface.
 
+**Escalation curve (2026-10-02).** Reach starts at 100 and grows by 50 per post. The probability that post *k* triggers suspension is `0.02 + 0.03 × (k − 1)`: 2% on the first post, 41% on the fourteenth, and the fifteenth is certain. About six posts survive on average. The earlier parameters (5% rising by 8 points) ended most runs within three presses, which left no room for risk to build. Each post takes 1.5s to "publish", during which a further press is ignored: every pump is a separate, deliberate decision and the key cannot be mashed. Securing is never blocked.
+
+**What is logged per pump** (`BART_PUMP` metadata): `pump` (1-based), `burst_prob` (the hazard that pump faced), `value` (reach afterwards), `instability` (gauge fraction) and `item_rt_ms` (latency since the previous accepted action — subtract the 1.5s publish time for deliberation time). `BART_SECURE` adds `pumps` and `next_burst_prob` (the risk that was declined); `BART_BURST` adds the fatal `pump`. The rows of one run are that participant's pressure curve.
+
 **Consequence (4s):**
-- If stopped early: *"Following secured. Your account remained active for [X] more potential posts."* — Potential regret.
-- If pushed to suspension: *"Account suspended. All accumulated following lost."*
-- If pushed far and stopped: *"Maximum reach achieved. You stopped [X] posts before suspension."*
+- If stopped: *"Gains secured. System remained stable for [X] more cycles."* — potential regret. [X] is not invented: it is replayed from a copy of the session's random generator, so it is what would really have happened had the participant kept posting.
+- If pushed to suspension: *"System failure. All accumulated progress lost."*
 
 ---
 
@@ -296,7 +319,7 @@ Produces stress through **moral-cognitive conflict** — competing ethical princ
 
 **Paradigm basis:** Personal moral dilemma (Greene et al., 2001) — participant is directly responsible for the consequence.
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Your close friend is locked out of the school's submission portal due to a technical error that won't be fixed for three weeks — past the assignment deadline. You still have their login saved from a previous help session. Using it violates the school's IT policy."*
 
 **Decision phase (45s):**
@@ -321,10 +344,10 @@ All consequences are deliberately ambiguous:
 
 **Paradigm basis:** Taboo trade-off (Tetlock et al., 2000) — assigning utilitarian value to something treated as sacred (academic integrity).
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Your group has been building on an old assignment from a senior student who graduated. You just realized the work was never formally shared — it could be classified as academic plagiarism. Removing it now sets your entire project back by days before the deadline."*
 
-**Decision phase (40s):**
+**Decision phase (45s):**
 - **Option 1 (Key 1):** Remove the borrowed sections and accept the delay — academically honest, harms the team's timeline
 - **Option 2 (Key 2):** Keep it and add an acknowledgement crediting the original work — a compromise, still academically questionable
 - **Option 3 (Key 3):** Contact the original student and ask for formal permission — transparent, but their response is unpredictable and time is short
@@ -356,7 +379,7 @@ Triggers **anticipatory anxiety** — the sustained distress caused by unpredict
 
 **Paradigm basis:** Ambiguous feedback paradigm (Hirsh & Inzlicht, 2008, *Psychological Science*)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"You've been offered two paths forward. Both have significant implications for your future, but the outcomes of each path are influenced by factors you cannot predict or control."*
 
 **Decision phase (45s):**
@@ -368,7 +391,7 @@ Two paths are described with deliberately **incomplete information**:
 The missing information (`[DATA UNAVAILABLE]`, `[UNDER REVIEW]`) is the core manipulation — it prevents the participant from making a fully informed decision, triggering intolerance of uncertainty. "Track" is intentionally ambiguous — an academic stream for younger participants, a course or program for older ones.
 
 **Post-decision waiting phase (12s):**
-After selecting, a *"Processing your selection..."* screen appears with a slowly spinning indicator. **No information is revealed during this wait.** This 12-second window sustains the uncertainty manipulation through the domain-active span; HRV features are extracted over the full ~65s continuous active epoch (priming + decision + post-wait + feedback), satisfying the ML pipeline's 60s sliding window requirement (see `PULSE_Gamification_Interface_Spec.md` §5).
+After selecting, a *"Processing your selection..."* screen appears with a slowly spinning indicator. **No information is revealed during this wait.** This 12-second window sustains the uncertainty manipulation through the domain-active span; HRV features are extracted over the full 81s continuous active epoch (20s priming + 45s decision + 12s post-wait + 4s feedback), satisfying the ML pipeline's 60s sliding window requirement (see `PULSE_Gamification_Interface_Spec.md` §5).
 
 **Consequence (4s):**
 > *"Your selection has been recorded. Outcome details will be provided at the end of the evaluation."*
@@ -381,12 +404,12 @@ Deliberately unresolved. The outcome is NEVER revealed during this scenario — 
 
 **Paradigm basis:** Ambiguous feedback + uncertain threat (Grillon et al., 2004; de Berker et al., 2016)
 
-**Priming (8s):**
+**Priming (20s):**
 > *"Before your final assessment, your teacher pulls you aside: 'Your approach throughout this term has been... atypical compared to your peers.' You don't know if this is a compliment or a warning. You must now respond."*
 
 The word **"atypical"** is the critical manipulation — it's ambiguous (could mean better or worse than average) and implies the participant is being compared to others in an undefined way.
 
-**Decision phase (40s):**
+**Decision phase (45s):**
 A question about the participant's approach to the session so far:
 
 - **Option 1 (Key 1):** "I've been approaching each task based on my instincts and what made sense to me."
@@ -427,8 +450,8 @@ The strongest known laboratory stressor. Combines **social-evaluative threat** (
 
 **Paradigm basis:** TSST speech task (Kirschbaum et al., 1993) + biofeedback amplification (Wieser et al., 2010)
 
-**Priming (10s):**
-> *"You are presenting your project findings to an expert evaluation panel. The panel's assessment will determine your project grade. A biometric sensor is tracking your composure for the panel's review."*
+**Priming (20s):**
+> *"You are presenting your project findings to an expert evaluation panel. The panel's assessment will determine your project grade. The system is monitoring your physiological composure in real-time."*
 
 The final sentence primes the participant for the biofeedback mechanic — they know their physical tremor is being evaluated.
 
@@ -448,7 +471,11 @@ The screen shows a simulated panel of **3 evaluator portraits** with neutral, ex
 - Diegetic tension drone activates in the final third.
 
 **Consequence (4s):**
-> *"The panel has recorded your response. Composure score: [derived from MPU6050 data — low if tremor detected]. Final evaluation pending."*
+> *"The panel has recorded your response. Composure analysis: recorded. Final evaluation pending."*
+
+No composure figure is shown in the consequence (and the word "score" is not used anywhere on screen). The composure bar itself is the feedback, during the decision window.
+
+**Telemetry source (2026-10-02, ADR-B1).** The bar is driven by the wrist accelerometer through the sensor bridge: live from the ESP32 (`SerialBridge`), or from a recording that `serial_reader.py` is writing (`ReplayBridge` in follow mode). With no bridge, or when the stream goes quiet for 1.5s, the bar shows "TELEMETRY LINK: STANDBY" and no value. A session without live telemetry is not a biofeedback session: the bridge in use is logged in `SYNC_PULSE`, and Domain 7 data from `StubBridge` sessions measures evaluative threat without the amplification loop.
 
 ---
 
@@ -456,12 +483,12 @@ The screen shows a simulated panel of **3 evaluator portraits** with neutral, ex
 
 **Paradigm basis:** Evaluative observation + negative feedback (Geen, 1991; MAST social-evaluative component, Smeets et al., 2012)
 
-**Priming (10s):**
-> *"Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. A biometric sensor is tracking your composure for review."*
+**Priming (20s):**
+> *"Your teacher or coach has singled you out in front of the group for a critical review — one you didn't request. The system is monitoring your composure in real-time."*
 
 Again, the final sentence primes the biofeedback mechanic.
 
-**Decision phase (46s):** *(Note: Calibrated to 46s so that 10s priming + 46s decision + 4s consequence = 60s minimum active epoch).*
+**Decision phase (45s):** *(Locked at 45s, ADR-B3. An earlier draft used 46s so that a 10s priming + 46s + 4s reached 60s; with the 20s priming the epoch is 69s and the odd second is unnecessary.)*
 The screen displays a harsh, borderline-unfair critique:
 
 > *"Your teacher states: 'Your recent performance has been below the standard expected in this program. I need to understand whether this is a capability issue or a commitment issue. Explain yourself.'"*
@@ -477,7 +504,7 @@ Response options:
 - The phrasing "capability issue or commitment issue" is a deliberate **false dichotomy** that forces the participant into a defensive position — both options are unflattering.
 
 **Consequence (4s):**
-> *"Your response has been logged. Updated assessment: [deliberately ambiguous — 'Under continued review']. Composure score: [MPU6050-derived]."*
+> *"Your response has been logged. Updated assessment: Under continued review."*
 
 ---
 
@@ -500,7 +527,7 @@ Response options:
 | Citation | Relevance |
 |---|---|
 | Asch, S. E. (1951) | Conformity paradigm — Domain 2 |
-| Bechara, A. et al. (1994, 1997) *Cognition*, *Science* | Iowa Gambling Task, anticipatory SCR — Domain 4 |
+| Bechara, A. et al. (1994, 1997) *Cognition*, *Science* | Iowa Gambling Task, anticipatory SCR — Domain 4 (payoff structure and target signal; the task itself is not run) |
 | Berns, G. S. et al. (2005) *Biological Psychiatry* | Amygdala activation during social dissent — Domain 2 |
 | Buhr, K. & Dugas, M. J. (2002) *BRAT* | Intolerance of Uncertainty Scale — Domain 6 |
 | Carleton, R. N. (2016) *J. Anxiety Disorders* | IU as transdiagnostic risk factor — Domain 6 |

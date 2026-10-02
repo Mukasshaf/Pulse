@@ -186,3 +186,25 @@ The `choice_data` column absorbs what Mukasshaf needs (the user's selection), wh
 | Vault `Progress.md` | Add Mukasshaf's Phase 2–3.1 timeline | Major |
 | Vault `Decisions.md` | Add Mukasshaf's motion-artifact methodology decisions | Medium |
 | Vault `Project Overview.md` | Update team status, hardware status | Minor |
+
+---
+
+## Addendum (2026-10-02): The Bridge and Timing Points, As Built
+
+Two items in this evaluation described intentions that have since been implemented, so the statements above need these corrections:
+
+**"Decoupled Architecture (No Live IPC)" — still the primary data path, with one addition.** The game now has a real bridge for the Domain 7 composure display (`src/game/sensor_bridge.py`). There is still no socket and no IPC:
+
+- *Decoupled, unchanged:* `serial_reader.py` owns the COM port and records. The game is started with `--bridge replay --bridge-follow --bridge-source <the CSV serial_reader is writing>` and reads the growing file. Nothing in the pipeline changes.
+- *Integrated, new:* the game owns the COM port (`--bridge auto`, the default, or `--bridge serial`) and writes `sensor_stream.csv` into the session folder. The file has `serial_reader.py`'s exact columns and the same host-clock `unix_ts_ms`, so `hardware_loader.py` and `align_signals.py` read it as they read `recorded_*.csv`. `serial_reader.py` must not be running in this mode.
+- The game never takes the port from the recorder: if the port is busy its open fails and it runs without telemetry.
+- The description above of a `queue.Queue()` bridge is superseded: the bridge keeps only the latest sample and a 1s window of acceleration magnitudes behind a lock.
+
+**"60s Windowing Constraint" — the numbers above are out of date and the guarantee is now enforced.** Decision phases are 45s (40s for the arithmetic run), priming is 20s, consequence 4s: every scenario block is 64–69s, or 79–84s with a post-decision wait. More importantly, a keypress no longer ends the decision phase, so the block cannot be shorter than that. `SCENARIO_PRIMING` → `SCENARIO_END` spans at least 60s in every session not run with `--no-exposure-floor`.
+
+**For the pipeline owner — found while linting `src/pipeline/` (behaviour otherwise unchanged, verified on 106 checkpoints):**
+
+1. `batch_comparison.compute_subject_pct_change()` called `pct_change()` without its `baseline_std` argument and raised `TypeError`. It now passes `baseline[col].std()`.
+2. `batch_comparison.FEATURE_COLS` lists `scl_slope`, which `features.py` does not produce, so the script still stops with `KeyError: 'scl_slope'` on current feature files. Not changed: dropping the column or adding the feature is a pipeline decision.
+3. In this branch `hardware_loader.load_hardware_csv()` does not return `unix_ts_ms`, so `load_labeled_hardware_csv()` falls back to `timestamp_ms`. `origin/main` already fixes this; it arrives with the next merge.
+4. `ACC_THRESHOLD_HW` (Q3 above) is still calibrated on typing. The game's composure display does not use it — it uses a per-subject threshold from the resting baseline (μ + 1.5σ of acceleration-magnitude variance) — but the pipeline's motion flag should be re-validated on gameplay recordings.

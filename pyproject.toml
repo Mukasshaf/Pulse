@@ -31,3 +31,10 @@ package = false
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # pygame 2.6 imports pkg_resources at import time; the deprecation is upstream's and not actionable here.
+    # Filtering it keeps the run warning-free so that a warning from Pulse's own code stands out.
+    "ignore:pkg_resources is deprecated as an API:UserWarning",
+]

@@ -1,11 +1,24 @@
 """Unit tests for scenario registry, dataclasses, and math generators."""
 from __future__ import annotations
 
+import ast
+import re
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 import pytest
 
-from src.game.constants import DomainID, DomainNotFoundError, ScenarioType
+from src.game import constants
+from src.game.constants import (
+    DEFAULT_CONSEQUENCE_DURATION_S,
+    DEFAULT_DECISION_DURATION_S,
+    DEFAULT_PRIMING_DURATION_S,
+    MIN_ACTIVE_EPOCH_S,
+    MIST_DECISION_DURATION_S,
+    DomainID,
+    DomainNotFoundError,
+    ScenarioType,
+)
 from src.game.scenarios import Domain, generate_math_problems, get_domain_by_id
 
 
@@ -103,6 +116,47 @@ def test_scenario_titles_and_durations(domain_registry: list[Domain]) -> None:
     for s_id, expected_title in expected_titles.items():
         assert s_id in scenarios_by_id
         assert scenarios_by_id[s_id].title == expected_title
+
+
+def test_scenario_durations_are_locked(domain_registry: list[Domain]) -> None:
+    """Verify the locked timing contract: 20 s priming everywhere, 45 s decisions, a 40 s MIST run."""
+    assert (DEFAULT_PRIMING_DURATION_S, DEFAULT_DECISION_DURATION_S, MIST_DECISION_DURATION_S, DEFAULT_CONSEQUENCE_DURATION_S) == (20, 45, 40, 4)
+    scenarios_by_id = {s.id: s for d in domain_registry for s in d.scenarios}
+    for scenario in scenarios_by_id.values():
+        assert scenario.priming_duration_s == DEFAULT_PRIMING_DURATION_S, scenario.id
+        assert scenario.consequence_duration_s == DEFAULT_CONSEQUENCE_DURATION_S, scenario.id
+        expected_decision = MIST_DECISION_DURATION_S if scenario.id == "academic_pressure_a" else DEFAULT_DECISION_DURATION_S
+        assert scenario.decision_duration_s == expected_decision, scenario.id
+        # One uninterrupted priming + decision + feedback epoch must cover a 60 s HRV feature window
+        assert scenario.priming_duration_s + scenario.decision_duration_s + scenario.consequence_duration_s >= MIN_ACTIVE_EPOCH_S, scenario.id
+    assert scenarios_by_id["social_evaluation_b"].decision_duration_s == 45
+    assert str(MIST_DECISION_DURATION_S) in scenarios_by_id["academic_pressure_a"].priming_text
+
+
+def test_participant_facing_text_has_no_score_language(domain_registry: list[Domain]) -> None:
+    """Verify no scenario text and no string drawn by the UI says score, points, or leaderboard."""
+    banned = re.compile(r"\b(scores?|points?|leaderboard)\b", re.IGNORECASE)
+    offenders: list[str] = []
+    for domain in domain_registry:
+        for scenario in domain.scenarios:
+            texts = [scenario.title, scenario.priming_text, scenario.post_wait_text, scenario.timeout_consequence]
+            texts += [part for option in scenario.options for part in (option.text, option.consequence_text)]
+            texts += scenario.delay_wait_outcomes or []
+            offenders += [f"{scenario.id}: {text}" for text in texts if banned.search(text)]
+
+    game_dir = Path(constants.__file__).parent
+    for path in sorted(game_dir.glob("ui*.py")) + sorted((game_dir / "skins").glob("*.py")) + [game_dir / "engine_input.py", game_dir / "engine_state.py"]:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        docstrings = {
+            id(node.body[0].value)
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)) and node.body
+            and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings and banned.search(node.value):
+                offenders.append(f"{path.name}:{node.lineno}: {node.value}")
+    assert offenders == []
 
 
 def test_scenario_skins(domain_registry: list[Domain]) -> None:

@@ -5,10 +5,10 @@ import os
 import time
 from pathlib import Path
 
-import pytest
 import pygame
+import pytest
 
-from src.game.constants import DomainID, EventType
+from src.game.constants import EventType
 from src.game.event_logger import GameEvent
 from src.game.scenarios import Domain, build_domain_registry
 

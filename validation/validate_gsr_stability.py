@@ -10,6 +10,7 @@ Acceptance criteria:
 """
 
 import sys
+
 import numpy as np
 import pandas as pd
 
@@ -99,7 +100,7 @@ def run() -> dict:
 
 if __name__ == "__main__":
     print(f"\n{'='*55}")
-    print(f"  Task 2 -- GSR Stability Validation")
+    print("  Task 2 -- GSR Stability Validation")
     print(f"{'='*55}")
     result = run()
     for k, v in result.items():

@@ -8,14 +8,18 @@ import pygame
 import pytest
 
 from src.game.constants import (
+    VALID_TRANSITIONS,
     DomainID,
     EngineState,
-    EventType,
     InvalidStateTransition,
-    VALID_TRANSITIONS,
 )
 from src.game.engine import GameEngine, SessionConfig
 from src.game.event_logger import EventLogger
+
+
+def _state(engine: GameEngine) -> EngineState:
+    """Read the state through a call: mypy would otherwise narrow the attribute across a transition."""
+    return engine._current_state
 
 
 def _make_engine(tmp_path: Path, domain: DomainID | None = None) -> GameEngine:
@@ -36,13 +40,13 @@ def _make_engine(tmp_path: Path, domain: DomainID | None = None) -> GameEngine:
 def test_engine_initial_state_and_valid_transition(tmp_path: Path) -> None:
     """Verify INIT state and valid state progression."""
     engine = _make_engine(tmp_path)
-    assert engine._current_state == EngineState.INIT
+    assert _state(engine) == EngineState.INIT
 
     engine._transition_to(EngineState.ID_INPUT)
-    assert engine._current_state == EngineState.ID_INPUT
+    assert _state(engine) == EngineState.ID_INPUT
 
     engine._transition_to(EngineState.BASELINE)
-    assert engine._current_state == EngineState.BASELINE
+    assert _state(engine) == EngineState.BASELINE
     engine._shutdown()
 
 
@@ -66,7 +70,7 @@ def test_mouse_events_ignored(tmp_path: Path) -> None:
 
     mouse_event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"pos": (100, 100), "button": 1})
     engine._handle_input(mouse_event)
-    assert engine._current_state == EngineState.ID_INPUT
+    assert _state(engine) == EngineState.ID_INPUT
     engine._shutdown()
 
 
@@ -85,12 +89,12 @@ def test_timeout_and_consequence_flow(tmp_path: Path) -> None:
     engine._transition_to(EngineState.BASELINE)
     engine._transition_to(EngineState.PRIMING)
     engine._transition_to(EngineState.DECISION)
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
 
     # Advance decision timer to 0
     engine._update(50000)
     # academic_pressure_a has no post_wait -> transitions directly to FEEDBACK
-    assert engine._current_state == EngineState.FEEDBACK
+    assert _state(engine) == EngineState.FEEDBACK
     engine._shutdown()
 
 
@@ -103,24 +107,24 @@ def test_keydown_option_selection_and_invalid_keys(tmp_path: Path) -> None:
     engine._current_scenario_idx = 1
     engine._transition_to(EngineState.PRIMING)
     engine._transition_to(EngineState.DECISION)
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
 
     # Invalid key 9 has no effect
     invalid_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_9})
     engine._handle_input(invalid_event)
     assert engine._selected_option_index is None
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
 
     # Non-numeric key has no effect
     space_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
     engine._handle_input(space_event)
     assert engine._selected_option_index is None
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
 
     # Valid key 1 selects option and transitions to FEEDBACK
     key1_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_1})
     engine._handle_input(key1_event)
-    assert engine._current_state == EngineState.FEEDBACK
+    assert _state(engine) == EngineState.FEEDBACK
     curr_scenario = engine._get_safe_scenario()
     assert curr_scenario is not None
     assert engine._consequence_text == curr_scenario.options[0].consequence_text
@@ -168,7 +172,7 @@ def test_post_wait_isolation(tmp_path: Path) -> None:
     engine_fu._transition_to(EngineState.PRIMING)
     engine_fu._transition_to(EngineState.DECISION)
     engine_fu._handle_input(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_1}))
-    assert engine_fu._current_state == EngineState.POST_WAIT
+    assert _state(engine_fu) == EngineState.POST_WAIT
     engine_fu._shutdown()
 
     # academic_pressure skips POST_WAIT directly to FEEDBACK
@@ -179,7 +183,7 @@ def test_post_wait_isolation(tmp_path: Path) -> None:
     engine_acad._transition_to(EngineState.PRIMING)
     engine_acad._transition_to(EngineState.DECISION)
     engine_acad._handle_input(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_1}))
-    assert engine_acad._current_state == EngineState.FEEDBACK
+    assert _state(engine_acad) == EngineState.FEEDBACK
     engine_acad._shutdown()
 
 
@@ -194,12 +198,12 @@ def test_intra_and_inter_rest_intervals(tmp_path: Path) -> None:
 
     # After Scenario A feedback expires -> INTRA_REST (15s)
     engine._update(4500)
-    assert engine._current_state == EngineState.INTRA_REST
+    assert _state(engine) == EngineState.INTRA_REST
     assert engine._state_timer_ms == 15000
 
     # Advance rest timer -> Scenario B PRIMING
     engine._update(16000)
-    assert engine._current_state == EngineState.PRIMING
+    assert _state(engine) == EngineState.PRIMING
     assert engine._current_scenario_idx == 1
 
     # Advance through Scenario B
@@ -207,7 +211,7 @@ def test_intra_and_inter_rest_intervals(tmp_path: Path) -> None:
     engine._transition_to(EngineState.FEEDBACK)
     # After Scenario B feedback expires -> INTER_REST (30s)
     engine._update(4500)
-    assert engine._current_state == EngineState.INTER_REST
+    assert _state(engine) == EngineState.INTER_REST
     assert engine._state_timer_ms == 30000
     engine._shutdown()
 
@@ -224,7 +228,7 @@ def test_debrief_after_all_domains(tmp_path: Path) -> None:
 
     # Feedback on final scenario of final domain expires -> DEBRIEF
     engine._update(4500)
-    assert engine._current_state == EngineState.DEBRIEF
+    assert _state(engine) == EngineState.DEBRIEF
     assert VALID_TRANSITIONS[engine._current_state] == set()
     engine._shutdown()
 
@@ -237,37 +241,37 @@ def test_full_session_simulation_all_domains(tmp_path: Path) -> None:
 
     # Enter ID via return key (default S01 is pre-populated)
     engine._handle_input(pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_RETURN, "unicode": "\r"}))
-    assert engine._current_state == EngineState.BASELINE
+    assert _state(engine) == EngineState.BASELINE
     engine._render()
 
     # Complete baseline calibration
     engine._update(11000)
-    assert engine._current_state == EngineState.PRIMING
+    assert _state(engine) == EngineState.PRIMING
     engine._render()
 
     # Simulate all 7 domains (14 scenarios)
     for domain_idx in range(len(engine._domains)):
         for scen_idx in (0, 1):
-            assert engine._current_state == EngineState.PRIMING
+            assert _state(engine) == EngineState.PRIMING
             engine._render()
             scenario = engine._get_safe_scenario()
             assert scenario is not None
 
             # Advance priming timer -> DECISION
             engine._update(scenario.priming_duration_s * 1000 + 100)
-            assert engine._current_state == EngineState.DECISION
+            assert _state(engine) == EngineState.DECISION
             engine._render()
 
             # If still in DECISION, advance remaining decision time to transition out
-            if engine._current_state == EngineState.DECISION:
+            if _state(engine) == EngineState.DECISION:
                 engine._update(scenario.decision_duration_s * 1000 + 100)
 
             # Check if post-wait
-            if scenario.has_post_wait and engine._current_state == EngineState.POST_WAIT:
+            if scenario.has_post_wait and _state(engine) == EngineState.POST_WAIT:
                 engine._render()
                 engine._update(scenario.post_wait_duration_s * 1000 + 100)
 
-            assert engine._current_state == EngineState.FEEDBACK
+            assert _state(engine) == EngineState.FEEDBACK
             engine._render()
 
             # Advance feedback timer
@@ -275,15 +279,15 @@ def test_full_session_simulation_all_domains(tmp_path: Path) -> None:
 
             # Rest state
             if scen_idx == 0:
-                assert engine._current_state == EngineState.INTRA_REST
+                assert _state(engine) == EngineState.INTRA_REST
                 engine._render()
                 engine._update(16000)
             elif domain_idx < len(engine._domains) - 1:
-                assert engine._current_state == EngineState.INTER_REST
+                assert _state(engine) == EngineState.INTER_REST
                 engine._render()
                 engine._update(31000)
 
-    assert engine._current_state == EngineState.DEBRIEF
+    assert _state(engine) == EngineState.DEBRIEF
     engine._render()
     assert engine._scenarios_completed == 14
     engine._shutdown()
@@ -295,12 +299,12 @@ def test_priming_early_skip_with_space(tmp_path: Path) -> None:
     engine._transition_to(EngineState.ID_INPUT)
     engine._transition_to(EngineState.BASELINE)
     engine._transition_to(EngineState.PRIMING)
-    assert engine._current_state == EngineState.PRIMING
+    assert _state(engine) == EngineState.PRIMING
 
     # Pressing SPACE skips the remaining priming countdown
     space_event = pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_SPACE})
     engine._handle_input(space_event)
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
     engine._shutdown()
 
 
@@ -311,7 +315,7 @@ def test_question_popup_hold_and_release(tmp_path: Path) -> None:
     engine._transition_to(EngineState.BASELINE)
     engine._transition_to(EngineState.PRIMING)
     engine._transition_to(EngineState.DECISION)
-    assert engine._current_state == EngineState.DECISION
+    assert _state(engine) == EngineState.DECISION
     assert engine._is_question_popup_active is False
 
     # Holding TAB down activates question popup

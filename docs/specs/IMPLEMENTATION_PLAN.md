@@ -28,7 +28,19 @@ Phase 3: Entry Point + Assets
 
 Phase 4: Integration Verification
   Task 13 → Full flow smoke test (depends: all above)
+
+Phase 5: Post-audit rounds (2026-10-02) — see the end of this document
+  Task 14 → Audit remediation: exposure floors, baseline, composure gating, sensory limits
+  Task 15 → Sensor bridge: sensor_stream.py, sensor_replay.py, sensor_bridge.py, --bridge
+  Task 16 → Timing: 30s inter-domain rest (+ --extended-rest), durations bound to constants
+  Task 17 → Paradigms: MIST in-run adaptation, single-balloon BART curve + pacing + logging
+  Task 18 → Palette: Ferrari tokens only, neutral key badges, per-pixel audit
+  Task 19 → Modularity: ui.py → ui_* + skins/, engine.py → engine_*; every file ≤500 lines
+  Task 20 → Repo-wide lint and strict typing (pipeline, hardware, validation, tests)
+  Task 21 → Agent context files and documentation sync
 ```
+
+> **Reading this plan today.** Tasks 1–13 describe how the engine was first built, one file per task. Several of those files have since been split (Task 19), so where a task names `ui.py` or `engine.py` as its output, read "the module family behind that facade". The verification snippets below have been kept runnable against the current code.
 
 ---
 
@@ -161,7 +173,7 @@ python -c "from src.game.audio import AudioController; print('OK')"
 - `SensorSample` dataclass
 - `BridgeInterface` Protocol with `get_latest_sample()` and `get_mpu_variance()` (3-axis magnitude variance)
 - `StubBridge` class returning `None` for all methods (default fallback mode)
-- `SerialBridge` class for real-time MPU6050 reading via background thread on COM port for Domain 7
+- The real bridge is not in this file: `SerialBridge` and `ReplayBridge` were added in Task 15 (`sensor_bridge.py`, `sensor_replay.py`, `sensor_stream.py`). The protocol also has `close()`
 
 **Verification checkpoint:**
 ```bash
@@ -171,6 +183,7 @@ b = StubBridge()
 assert isinstance(b, BridgeInterface)
 assert b.get_latest_sample() is None
 assert b.get_mpu_variance() is None
+b.close()
 print('OK')
 "
 ```
@@ -192,6 +205,7 @@ print('OK')
 - Layout calculation (card rects, button rects, timer bar rect)
 - `UIEffectState` dataclass to pass jitter/vibration state into draw methods
 - Specialized draw methods: `draw_peer_average_bar`, `draw_team_chat`, `draw_evaluator_panel`, `draw_composure_bar`, `draw_instability_gauge`
+- *Since Task 19:* `ui.py` is a 12-line facade. The class is assembled from `ui_core.py`, `ui_components.py`, `ui_screens.py`, `ui_post_wait.py`, `ui_domains.py` and the 14 modules in `skins/`. The import below is unchanged
 
 **Verification checkpoint:**
 ```bash
@@ -229,8 +243,9 @@ j = TextJitter()
 offset = j.get_offset(elapsed_ms=500)
 assert abs(offset[0]) <= 3 and abs(offset[1]) <= 3
 c = TimerBarColorTransition()
-assert c.get_color(1.0) == (34, 197, 94)   # green at 100%
-assert c.get_color(0.05) == (239, 68, 68)  # red at 5%
+from src.game.constants import COLOR_TIMER_GREEN, COLOR_TIMER_RED
+assert c.get_color(1.0) == COLOR_TIMER_GREEN   # green at 100%
+assert c.get_color(0.05) == COLOR_TIMER_RED    # Rosso Corsa at 5%
 print('OK')
 "
 ```
@@ -244,8 +259,8 @@ print('OK')
 **Specification source:** DATA_MODELS_AND_CONTRACTS.md §5 (Runner signatures)
 
 **Content:**
-- `MISTRunner` — rapid-fire arithmetic with fake peer progress
-- `BARTRunner` — escalating pump with probabilistic burst
+- `MISTRunner` — rapid-fire arithmetic with fake peer progress; since Task 17 an adaptive per-item countdown (`update()`, `get_item_time_fraction()`)
+- `BARTRunner` — escalating pump with probabilistic burst; since Task 17 a linear hazard curve, pump pacing (`can_pump()`, `update()`), and an honest counterfactual
 - `RewardAccumulator` — growing value with random collapse
 - `DelayWaitRunner` — simple timed wait screen
 
@@ -304,6 +319,7 @@ print('OK')
 - Domain randomization with seed logging
 - Scenario progression tracking (current domain index, scenario A/B flag)
 - Deception metric integration (social_evaluation only, reads `bridge.get_mpu_variance()` with 3-sample consecutive elevation + 5s cooldown gating)
+- *Since Task 19:* `engine.py` holds `run()` and `_render()`; state and transitions are in `engine_state.py`, input handlers in `engine_input.py`, per-frame updates in `engine_timer.py`
 
 **Verification checkpoint:**
 ```bash
@@ -315,25 +331,14 @@ from src.game.engine import GameEngine
 from src.game.constants import EngineState
 from src.game.event_logger import GameEvent
 # Verify construction succeeds
-from dataclasses import dataclass
-from src.game.scenarios import build_domain_registry
-# Minimal SessionConfig
-from pathlib import Path
+from src.game.engine import SessionConfig
 import time
 
-@dataclass
-class MockConfig:
-    subject_id: str = 'S99'
-    fast_baseline: bool = True
-    fullscreen: bool = False
-    window_size: tuple = (1280, 720)
-    domain_filter: None = None
-    session_start_unix_ts_ms: int = 0
-    random_seed: int = 42
-
-cfg = MockConfig(session_start_unix_ts_ms=int(time.time_ns()//1_000_000))
+cfg = SessionConfig(subject_id='S99', fast_baseline=True, fullscreen=False, window_size=(1280, 720),
+                    domain_filter=None, session_start_unix_ts_ms=int(time.time_ns()//1_000_000), random_seed=42)
 engine = GameEngine(cfg, screen)
 assert engine._current_state == EngineState.INIT
+engine._shutdown()
 print('OK')
 pygame.quit()
 "
@@ -350,8 +355,8 @@ pygame.quit()
 **Specification source:** DATA_MODELS_AND_CONTRACTS.md §5 (`main.py` signatures)
 
 **Content:**
-- `parse_args()` → `SessionConfig` via `argparse`
-- `main()` → init pygame, create screen, create `GameEngine`, call `run()`
+- `parse_cli()` → `(SessionConfig, BridgeOptions)` via `argparse`; `parse_args()` is kept as `parse_cli()[0]`
+- `main()` → create the sensor bridge, init pygame, create screen, create `GameEngine`, call `run()`, close the bridge
 - Top-level `try/except` for `PulseEngineError` and `KeyboardInterrupt`
 - `if __name__ == "__main__": main()` guard
 
@@ -430,15 +435,15 @@ uv run python -c "import pygame; import numpy; print('OK')"
 **Output:** No new files — validation only
 
 **Procedure:**
-1. Launch: `uv run python -m src.game.main --subject S99 --fast-baseline`
+1. Launch: `uv run python -m src.game.main --subject S99 --fast-baseline`. The console first prints the bridge status, e.g. `Sensor bridge [stub]: no ESP32-like serial port found`, and a warning that the Domain 7 composure display will stay on STANDBY. Add `--bridge stub` to skip the port scan on a machine without the hardware.
 2. Verify: ID input screen appears → type `S99` → press Enter
-3. Verify: Baseline screen appears with breathing animation and 10s countdown
-4. Verify: First domain's Scenario A priming text appears
+3. Verify: Baseline screen appears with a static fixation cross (no breathing animation) and 10s countdown
+4. Verify: First domain's Scenario A priming text appears; SPACE is refused until the priming floor passes
 5. Verify: Decision screen with options and timer bar
-6. Press a number key → verify consequence screen appears
+6. Press a number key → verify the choice locks in and stays highlighted until the timer expires, then the consequence screen appears (add `--no-exposure-floor` for a fast developer walkthrough)
 7. Verify: 15s intra-domain rest screen
 8. Verify: Scenario B priming → decision → consequence
-9. Verify: 60s inter-domain rest screen
+9. Verify: 30s inter-domain rest screen (60s when launched with `--extended-rest`)
 10. Continue through all 7 domains (or press Escape to exit early)
 11. Verify: `outputs/game_logs/S99_{timestamp}/events.csv` exists and contains:
     - Header row
@@ -454,3 +459,50 @@ uv run python -c "import pygame; import numpy; print('OK')"
 - Mouse cursor is hidden throughout
 - No numerical scores displayed anywhere
 - Tension drone plays during final 1/3 of at least one timer (verify audibly)
+- No colour on screen other than neutral greys, Rosso Corsa, yellow, cyan and green
+- Key prompts are dark plates with a grey border; the chosen one turns white
+
+---
+
+## Phase 5: Post-audit rounds (2026-10-02)
+
+Each task below was verified with the same three commands, all clean at the end of the round:
+
+```powershell
+uv run pytest -v                      # 107 passed
+uv run mypy src/ tests/ --strict      # no issues in 76 source files
+uv run ruff check .                   # all checks passed
+```
+
+### Task 14 — Audit remediation
+Exposure floors (commit-and-hold, priming floor), static baseline, honest composure display and gating, sensory limits as vector bounds, lifecycle events, text-fit guards. Record: ARCHITECTURE_SPEC §7.1, ADR-A1…A10, `tests/game/test_audit_fixes.py`.
+
+### Task 15 — Sensor bridge (ADR-B1)
+**Output:** `src/game/sensor_stream.py`, `sensor_replay.py`, `sensor_bridge.py`; `BridgeInterface.close()`; `--bridge {auto,serial,stub,replay}`, `--bridge-port`, `--bridge-source`, `--bridge-follow`.
+**Checkpoint:** `tests/game/test_bridge_interface.py` (12 tests, simulated ports only).
+**Not done:** a run against the physical ESP32.
+
+### Task 16 — Timing (ADR-B2, ADR-B3)
+**Output:** `INTER_DOMAIN_REST_S = 30`, `INTER_DOMAIN_REST_EXTENDED_S = 60`, `SessionConfig.inter_domain_rest_s`, `--extended-rest`; `DEFAULT_PRIMING_DURATION_S = 20`, `DEFAULT_DECISION_DURATION_S = 45`, `MIST_DECISION_DURATION_S = 40` used by every scenario in the registry.
+**Checkpoint:** `test_inter_domain_rest_default_and_extended`, `test_scenario_durations_are_locked`.
+
+### Task 17 — Paradigms (ADR-B3, ADR-B4)
+**Output:** MIST per-item countdown that adapts in-run and logs time-outs; BART hazard `0.02 + 0.03·(k−1)` with a certain burst at pump 15, a 1.5s pump cooldown, per-pump hazard / latency logging, and a counterfactual replayed from the session RNG; item bar in the exam skin; "PUBLISHING POST..." state in the analytics skin; `risk_reward_a` relabelled as a one-shot risky choice.
+**Checkpoint:** `test_scenario_logic.py` (5 new tests), `test_engine_paradigms.py`.
+
+### Task 18 — Palette (ADR-B5)
+**Output:** `COLOR_SEMANTIC_WARNING`, `_mix()`, `_draw_key_badge()`; 248 tinted literals neutralised at equal luminance, every saturated off-token colour mapped to a token; neutral avatars; selection in white; `COLOR_ACCENT_INDIGO` removed; four participant-facing strings reworded to drop the word "score".
+**Checkpoint:** `tests/game/test_palette.py` (6 tests, including a per-pixel hue audit of every screen), `test_participant_facing_text_has_no_score_language`.
+
+### Task 19 — Modularity (ADR-B6)
+**Output:** `ui.py` → `ui_core`, `ui_components`, `ui_screens`, `ui_post_wait`, `ui_domains` + `skins/` (14 modules); `engine.py` → `engine`, `engine_state`, `engine_input`, `engine_timer`. Largest file in `src/game/` is 428 lines.
+**Checkpoint:** 248 rendered frames hashed before and after the UI move: identical.
+**Not done:** the 60-line function rule (15 skin methods are 134–304 lines).
+
+### Task 20 — Repo-wide lint and typing (ADR-B7)
+**Output:** `ruff check .` and `mypy src/ tests/ --strict` clean. 185 ruff findings and 65 mypy errors cleared in `src/pipeline/`, `src/hardware/`, `validation/` and the shared tests.
+**Checkpoint:** 106 behavioural checkpoints of the pipeline on synthetic data, before and after: 104 identical, 2 changed by design (`batch_comparison.pct_change` was called with a missing argument). A structural comparison against git HEAD shows only the intentionally edited functions differ.
+**Left for the pipeline owner:** `batch_comparison.FEATURE_COLS` lists `scl_slope`, which `features.py` does not produce.
+
+### Task 21 — Agent files and documentation (ADR-B8)
+**Output:** `CLAUDE.md` rewritten, `GEMINI.md` created (identical content); all specs in `docs/` updated and mirrored to the Obsidian vault; ADR-B1…B8 in `Decisions.md`.
