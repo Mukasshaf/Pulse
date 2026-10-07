@@ -38,6 +38,7 @@ import numpy as np
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).parent
+sys.path.insert(0, str(_ROOT / "scripts" / "analysis"))
 sys.path.insert(0, str(_ROOT / "src" / "pipeline"))
 sys.path.insert(0, str(_ROOT / "src"))
 
@@ -107,7 +108,7 @@ def step_pre_check(subject: str, port: str, baud: int) -> bool:
     """Run pre_session_check.py as a subprocess. Returns True if passed/overridden."""
     print("\n── Step 1: Pre-Session Sensor Check ──────────────────────")
     cmd = _uv_run(
-        str(_ROOT / "pre_session_check.py"),
+        str(_ROOT / "scripts" / "hardware_checks" / "pre_session_check.py"),
         "--subject", subject,
         "--port", port,
         "--baud", str(baud),
@@ -286,13 +287,13 @@ def _write_summary_md(subject: str, results: dict, out_path: Path) -> None:
     ]
     if raw_subjects:
         lines += [
-            f"> ⚠️  Subject {subject} had insufficient baseline windows (< 4). "
+            f"> Subject {subject} had insufficient baseline windows (< 4). "
             "Z-score normalization was skipped. Values are in raw ADC units and "
             "**cannot be directly compared** to normalized subjects in the group report.",
             "",
         ]
     else:
-        lines.append("> ✓  Z-score normalization applied successfully against resting baseline.")
+        lines.append("> Z-score normalization applied successfully against resting baseline.")
         lines.append("")
 
     lines += [
@@ -314,7 +315,7 @@ def main() -> None:
         description="Pulse per-subject session orchestrator — one command, start to finish",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--subject",       required=True,  help="Subject ID (e.g. HW05)")
+    parser.add_argument("--subject",       required=True,  help="Subject ID (e.g. S05)")
     parser.add_argument("--port",          default=DEFAULT_PORT, help="Serial port")
     parser.add_argument("--baud",          default=DEFAULT_BAUD, type=int)
     parser.add_argument("--no-check",      action="store_true",
@@ -348,7 +349,7 @@ def main() -> None:
     game_proc  = step_launch_game(subject, args.fast_baseline, not args.no_fullscreen)
 
     print(f"\n  Session in progress. Waiting for game engine to complete...")
-    print(f"  (Do not close this terminal — it will proceed automatically when the game exits.)\n")
+    print(f"  (Do not close this terminal - it will proceed automatically when the game exits.)\n")
 
     try:
         game_proc.wait()   # blocks until game engine exits cleanly
@@ -366,7 +367,7 @@ def main() -> None:
     except FileNotFoundError as exc:
         print(f"\nERROR: {exc}")
         print("       Session data was captured but post-processing could not complete.")
-        print(f"       Raw sensor data is in outputs/raw/  — align manually when ready.")
+        print(f"       Raw sensor data is in outputs/raw/  - align manually when ready.")
         sys.exit(1)
 
     # Step 4: Feature extraction
@@ -382,7 +383,7 @@ def main() -> None:
     # Final summary line
     valid_count = sum(1 for v in results.values() if v is not None) if results else 0
     print(f"\n{'='*60}")
-    print(f"  ✓  Session complete.")
+    print(f"     Session complete.")
     print(f"     Subject      : {subject}")
     print(f"     Valid domains: {valid_count}/7")
     print(f"     Report       : {report_dir}/")

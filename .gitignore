@@ -14,4 +14,29 @@ __pycache__/
 
 .venv/
 .venv-win/
-.venv-wsl/
+.env
+
+# Data directories (raw datasets, captures, event logs)
+/data
+
+# Output artifacts (trained models, feature matrices, plots, run logs)
+/outputs/*
+!/outputs/features/
+!/outputs/models/
+!/outputs/plots/
+!/outputs/results/
+!/outputs/domain_map.png
+!/outputs/PPT_Radar_Charts.png
+!/outputs/domain_map_feature_summary.csv
+
+
+/graphify-out/
+/raw/
+
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

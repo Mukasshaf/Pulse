@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-_ROOT = Path(__file__).parent
+_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_ROOT / "src" / "pipeline"))
 sys.path.insert(0, str(_ROOT / "src"))
 

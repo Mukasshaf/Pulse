@@ -30,7 +30,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-_ROOT = Path(__file__).parent
+# __file__ is scripts/analysis/per_subject_features.py — go up two levels to reach project root
+_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_ROOT / "src" / "pipeline"))
 sys.path.insert(0, str(_ROOT / "src"))
 
