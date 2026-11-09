@@ -1,15 +1,16 @@
 
 
+import os
+import sys
+from typing import Any
+
+import neurokit2 as nk
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
-import neurokit2 as nk
-import sys
-import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject
 from hardware_loader import load_hardware_csv
-
+from wesad_loader import load_subject
 
 #  BVP PPG 
 
@@ -18,14 +19,15 @@ def clean_bvp(bvp: np.ndarray, fs: int = 64) -> np.ndarray:
     low  = 0.5 / (fs / 2)
     high = min(5.0 / (fs / 2), 0.99)
     sos  = butter(4, [low, high], btype="band", output="sos")
-    return sosfiltfilt(sos, bvp).astype(np.float32)
+    filtered: np.ndarray = sosfiltfilt(sos, bvp).astype(np.float32)
+    return filtered
 
 
-def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict:
+def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict[str, Any]:
     
     from scipy.ndimage import median_filter
 
-    ppg_signals, info = nk.ppg_process(bvp_clean, sampling_rate=fs)
+    _, info = nk.ppg_process(bvp_clean, sampling_rate=fs)
     peaks = info["PPG_Peaks"]
 
     if len(peaks) < 2:
@@ -60,7 +62,7 @@ def detect_peaks(bvp_clean: np.ndarray, fs: int = 64) -> dict:
 
 #  EDA / GSR 
 
-def decompose_eda(eda: np.ndarray, fs: int = 4) -> dict:
+def decompose_eda(eda: np.ndarray, fs: int = 4) -> dict[str, Any]:
    
     eda_signals, info = nk.eda_process(eda, sampling_rate=fs)
 
@@ -104,7 +106,7 @@ def flag_motion_artifacts(acc: np.ndarray, fs: int = 32,
 
 # Combined per-subject preprocessing 
 
-def preprocess_subject(subject: dict) -> dict:
+def preprocess_subject(subject: dict[str, Any]) -> dict[str, Any]:
     sid    = subject["sid"]
     fs_bvp = subject["fs"]["bvp"]
     fs_eda = subject["fs"]["eda"]
@@ -136,14 +138,15 @@ def preprocess_subject(subject: dict) -> dict:
 
 # Validation plot 
 
-def plot_validation(subject_raw: dict, preprocessed: dict,
+def plot_validation(subject_raw: dict[str, Any], preprocessed: dict[str, Any],
                     save_path: str = "outputs/plots/preprocess_validation.png",
                     n_seconds: int = 30) -> None:
    
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     from pathlib import Path
+
+    import matplotlib.pyplot as plt
 
     Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -249,7 +252,7 @@ def plot_validation(subject_raw: dict, preprocessed: dict,
 ACC_THRESHOLD_HW: float = 8800.0
 
 
-def preprocess_hardware(csv_path: str) -> dict:
+def preprocess_hardware(csv_path: str) -> dict[str, Any]:
     """
     Load a hardware CSV via hardware_loader and run the same preprocessing
     pipeline as preprocess_subject(), with fs=66.67 passed explicitly on

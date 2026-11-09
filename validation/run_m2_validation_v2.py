@@ -5,12 +5,13 @@ Tests all tasks from PULSE_M2_Validation_Guide.md against every relevant file.
 Writes M2_Validation_Summary.md with per-file results.
 """
 
-import sys, os
+import os
+import sys
+from datetime import datetime
+
+import neurokit2 as nk
 import numpy as np
 import pandas as pd
-import neurokit2 as nk
-from pathlib import Path
-from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
@@ -64,16 +65,16 @@ def _drop_rate(df):
     missed_rows   = int(np.sum(idx_diffs[idx_diffs > 1] - 1))
     backwards     = int(np.sum(idx_diffs < 0))
     drop_rate_pct = (1.0 - actual / expected) * 100
-    return dict(
-        duration_s    = round((last_ts - first_ts) / 1000, 3),
-        expected_rows = expected,
-        actual_rows   = actual,
-        drop_rate_pct = round(drop_rate_pct, 4),
-        gap_events    = gap_events,
-        missed_rows   = missed_rows,
-        backwards     = backwards,
-        gate_pass     = drop_rate_pct < 5.0,
-    )
+    return {
+        "duration_s": round((last_ts - first_ts) / 1000, 3),
+        "expected_rows": expected,
+        "actual_rows": actual,
+        "drop_rate_pct": round(drop_rate_pct, 4),
+        "gap_events": gap_events,
+        "missed_rows": missed_rows,
+        "backwards": backwards,
+        "gate_pass": drop_rate_pct < 5.0,
+    }
 
 # ============================================================
 # TASK 0 — fs audit (precomputed)
@@ -99,7 +100,7 @@ def task1_peak_detection(csv_path):
     peak_idx   = peaks_info["PPG_Peaks"]
 
     if len(peak_idx) < 2:
-        return dict(status="FAIL", reason="fewer than 2 peaks detected", file=csv_path)
+        return {"status": "FAIL", "reason": "fewer than 2 peaks detected", "file": csv_path}
 
     ibi_ms      = np.diff(peak_idx) / FS * 1000.0
     mask_valid  = (ibi_ms >= 400) & (ibi_ms <= 1500)
@@ -112,25 +113,25 @@ def task1_peak_detection(csv_path):
     gate_bpm = 50.0 <= mean_bpm <= 100.0
     passed   = gate_ibi and gate_bpm
 
-    return dict(
-        status         = "PASS" if passed else "FAIL",
-        file           = csv_path,
-        fs_hz          = round(FS, 4),
-        duration_s     = round(dur, 3),
-        total_samples  = len(raw),
-        peak_count     = int(len(peak_idx)),
-        ibi_count      = int(len(ibi_ms)),
-        ibi_min_ms     = round(float(ibi_ms.min()), 1),
-        ibi_max_ms     = round(float(ibi_ms.max()), 1),
-        ibi_mean_ms    = round(float(np.mean(ibi_ms)), 1),
-        ibi_std_ms     = round(float(np.std(ibi_ms)), 1),
-        ibi_cv         = round(ibi_cv, 4),
-        pct_valid_ibi  = round(pct_valid, 2),
-        mean_bpm       = round(mean_bpm, 2),
-        gate_ibi_pass  = gate_ibi,
-        gate_bpm_pass  = gate_bpm,
-        manual_tuning  = False,
-    )
+    return {
+        "status": "PASS" if passed else "FAIL",
+        "file": csv_path,
+        "fs_hz": round(FS, 4),
+        "duration_s": round(dur, 3),
+        "total_samples": len(raw),
+        "peak_count": len(peak_idx),
+        "ibi_count": len(ibi_ms),
+        "ibi_min_ms": round(float(ibi_ms.min()), 1),
+        "ibi_max_ms": round(float(ibi_ms.max()), 1),
+        "ibi_mean_ms": round(float(np.mean(ibi_ms)), 1),
+        "ibi_std_ms": round(float(np.std(ibi_ms)), 1),
+        "ibi_cv": round(ibi_cv, 4),
+        "pct_valid_ibi": round(pct_valid, 2),
+        "mean_bpm": round(mean_bpm, 2),
+        "gate_ibi_pass": gate_ibi,
+        "gate_bpm_pass": gate_bpm,
+        "manual_tuning": False,
+    }
 
 # ============================================================
 # TASK 2 — GSR stability
@@ -169,27 +170,27 @@ def task2_gsr_stability(csv_path):
     gate_sat     = not saturation
     passed = gate_dropout and gate_sat
 
-    return dict(
-        status              = "PASS" if passed else "FAIL",
-        file                = csv_path,
-        duration_s          = round(dur, 3),
-        overall_mean        = round(overall_mean, 2),
-        overall_std         = round(overall_std, 2),
-        gsr_range           = round(gsr_range, 1),
-        gsr_min             = round(float(gsr.min()), 1),
-        gsr_max             = round(float(gsr.max()), 1),
-        baseline_mean_10s   = round(baseline_mean, 2),
-        max_rolling_1s_std  = round(max_roll_std, 2),
-        mean_rolling_1s_std = round(mean_roll_std, 2),
-        big_jumps_gt20pct   = big_jumps,
-        max_single_jump     = round(max_jump, 2),
-        sat_at_0            = sat_0,
-        sat_at_4095         = sat_4095,
-        dropout_50pct_thresh= round(dropout_thresh, 2),
-        max_dropout_run_s   = round(max_dropout_s, 3),
-        gate_dropout_pass   = gate_dropout,
-        gate_sat_pass       = gate_sat,
-    )
+    return {
+        "status": "PASS" if passed else "FAIL",
+        "file": csv_path,
+        "duration_s": round(dur, 3),
+        "overall_mean": round(overall_mean, 2),
+        "overall_std": round(overall_std, 2),
+        "gsr_range": round(gsr_range, 1),
+        "gsr_min": round(float(gsr.min()), 1),
+        "gsr_max": round(float(gsr.max()), 1),
+        "baseline_mean_10s": round(baseline_mean, 2),
+        "max_rolling_1s_std": round(max_roll_std, 2),
+        "mean_rolling_1s_std": round(mean_roll_std, 2),
+        "big_jumps_gt20pct": big_jumps,
+        "max_single_jump": round(max_jump, 2),
+        "sat_at_0": sat_0,
+        "sat_at_4095": sat_4095,
+        "dropout_50pct_thresh": round(dropout_thresh, 2),
+        "max_dropout_run_s": round(max_dropout_s, 3),
+        "gate_dropout_pass": gate_dropout,
+        "gate_sat_pass": gate_sat,
+    }
 
 # ============================================================
 # TASK 3 — Motion artifact flagging
@@ -232,25 +233,25 @@ def task3_motion_flag(csv_path, tap_start_s, tap_end_s, buf_s=5.0):
     # Post-rest FP noted separately (settling expected after motion)
     passed = gate_tap and gate_pre_fp
 
-    return dict(
-        status              = "PASS" if passed else "FAIL",
-        file                = csv_path,
-        duration_s          = round(dur, 3),
-        n_windows           = n_windows,
-        rest_baseline_mu    = round(rest_mu, 2),
-        rest_baseline_sig   = round(rest_sig, 2),
-        threshold_mu2sig    = round(threshold, 2),
-        tap_window_s        = f"{tap_start_s}-{tap_end_s}",
-        tap_windows_n       = int(len(tap_idx)),
-        tap_windows_flagged = tap_flagged,
-        pre_rest_windows    = int(len(pre_rest)),
-        pre_rest_fp         = pre_fp,
-        post_rest_windows   = int(len(post_rest)),
-        post_rest_fp        = post_fp,
-        gate_tap_detected   = gate_tap,
-        gate_pre_rest_clean = gate_pre_fp,
-        post_fp_note        = "Post-tap settling — excluded from gate",
-    )
+    return {
+        "status": "PASS" if passed else "FAIL",
+        "file": csv_path,
+        "duration_s": round(dur, 3),
+        "n_windows": n_windows,
+        "rest_baseline_mu": round(rest_mu, 2),
+        "rest_baseline_sig": round(rest_sig, 2),
+        "threshold_mu2sig": round(threshold, 2),
+        "tap_window_s": f"{tap_start_s}-{tap_end_s}",
+        "tap_windows_n": len(tap_idx),
+        "tap_windows_flagged": tap_flagged,
+        "pre_rest_windows": len(pre_rest),
+        "pre_rest_fp": pre_fp,
+        "post_rest_windows": len(post_rest),
+        "post_rest_fp": post_fp,
+        "gate_tap_detected": gate_tap,
+        "gate_pre_rest_clean": gate_pre_fp,
+        "post_fp_note": "Post-tap settling — excluded from gate",
+    }
 
 # ============================================================
 # TASK 4 — Drop rate
@@ -270,15 +271,15 @@ def _gate(label, passed): return f"  - {label}: **{'PASS' if passed else 'FAIL'}
 def _trow(k, v): return f"| {k} | {v} |"
 
 def write_report(t0, t1_results, t2_results, t3_results, t4_results):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
     L = []
     a = L.append
 
     a("# M2 Hardware Validation Summary — Second Capture Set")
     a("")
     a(f"**Generated:** {now}")
-    a(f"**Project:** Pulse (GPAMS) — Phase 2 hardware gate")
-    a(f"**Hardware fs:** 66.67 Hz (SAMPLE_INTERVAL_MS=15 → 1000/15)")
+    a("**Project:** Pulse (GPAMS) — Phase 2 hardware gate")
+    a("**Hardware fs:** 66.67 Hz (SAMPLE_INTERVAL_MS=15 → 1000/15)")
     a("")
 
     # Recording setup
@@ -452,7 +453,7 @@ def write_report(t0, t1_results, t2_results, t3_results, t4_results):
 
     a("| Task | Verdict | Files tested |")
     a("|---|---|---|")
-    a(f"| Task 0 — fs audit | **PASS** | `src/preprocess.py`, `features.py`, `normalize.py` |")
+    a("| Task 0 — fs audit | **PASS** | `src/preprocess.py`, `features.py`, `normalize.py` |")
     a(f"| Task 1 — Peak detection | **{'PASS' if t1_pass else 'FAIL'}** | "
       f"{', '.join('`'+r['file']+'`' for r in t1_results)} |")
     a(f"| Task 2 — GSR stability | **{'PASS' if t2_pass else 'FAIL'}** | "

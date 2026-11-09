@@ -1,22 +1,23 @@
 
 
 import argparse
-import sys
 import os
-import pandas as pd
+import sys
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject
-from preprocess import preprocess_subject
-from features import extract_window_features, save_features
-from normalize import normalize_subject, save_normalized
-from classifier import train_loso, compare_models, plot_results, save_model
+import pandas as pd
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 
+from classifier import compare_models, plot_results, save_model, train_loso
+from features import extract_window_features
+from normalize import normalize_subject, save_normalized
+from preprocess import preprocess_subject
+from wesad_loader import load_subject
 
-def run_subject(sid: int, data_dir: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+
+def run_subject(sid: int, data_dir: str) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     print(f"\n{'─'*50}")
     print(f"  Processing S{sid}")
     print(f"{'─'*50}")
@@ -38,7 +39,7 @@ def run_subject(sid: int, data_dir: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return df_raw, df_norm
 
 
-def main():
+def main() -> None:
     # parser = argparse.ArgumentParser()
     # parser.add_argument("--sids", nargs="+", type=int,
     #                     default=[2, 3, 4, 5, 6],
@@ -68,8 +69,8 @@ def main():
 
 
     #parallel processing
-    from concurrent.futures import ProcessPoolExecutor, as_completed
     import multiprocessing as mp
+    from concurrent.futures import ProcessPoolExecutor, as_completed
     parser = argparse.ArgumentParser()
     parser.add_argument("--sids", nargs="+", type=int, default=[2, 3, 4, 5, 6])
     parser.add_argument("--data_dir", type=str, default="data/WESAD")
@@ -91,7 +92,7 @@ def main():
                 _, df_norm = future.result()
                 if df_norm is not None:
                     norm_dfs.append(df_norm)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one failed subject must not abort the batch
                 print(f"  ERROR S{sid}: {e}")
                 failed.append(sid)
 
@@ -115,14 +116,14 @@ def main():
     #  Print aggregate summary 
     agg = results["aggregate"]
     print(f"\n{'='*50}")
-    print(f"  Final Results")
+    print("  Final Results")
     print(f"{'='*50}")
     print(f"  Accuracy    : {agg['accuracy']:.4f}")
     print(f"  F1-macro    : {agg['f1_macro']:.4f}")
     print(f"  Specificity : {agg['specificity']:.4f}")
     print(f"  Sensitivity : {agg['sensitivity']:.4f}")
 
-    print(f"\n  Feature Importance (ranked):")
+    print("\n  Feature Importance (ranked):")
     importance = results["importance"]
     for feat, val in sorted(importance.items(), key=lambda x: -x[1]):
         bar = "█" * int(val * 40)
@@ -141,7 +142,7 @@ def main():
         for f in results["fold_results"]
     ])
     fold_df.to_csv("outputs/results/loso_fold_results.csv", index=False)
-    print(f"\n  Fold results → outputs/results/loso_fold_results.csv")
+    print("\n  Fold results → outputs/results/loso_fold_results.csv")
 
     # Save best params
     params = {k: v for k, v in results["best_params"].items()
@@ -150,11 +151,11 @@ def main():
         json.dump(params, f, indent=2)
 
     #  Model comparison on pooled data 
-    print(f"\n  Running model comparison on pooled data...")
+    print("\n  Running model comparison on pooled data...")
     df_all = pd.concat(norm_dfs, ignore_index=True)
     comparison_df = compare_models(df_all)
     comparison_df.to_csv("outputs/results/model_comparison_loso.csv", index=False)
-    print(f"  Model comparison → outputs/results/model_comparison_loso.csv")
+    print("  Model comparison → outputs/results/model_comparison_loso.csv")
 
 
 if __name__ == "__main__":

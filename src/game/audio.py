@@ -60,6 +60,16 @@ class AudioController:
             self._is_playing = False
             self._channel = None
 
+    def pause(self) -> None:
+        """Suspend the drone in place (window focus lost). No effect if not playing."""
+        if self._is_playing and self._channel is not None:
+            self._channel.pause()
+
+    def resume(self) -> None:
+        """Resume a drone suspended by pause(). No effect if not playing."""
+        if self._is_playing and self._channel is not None:
+            self._channel.unpause()
+
     def is_playing(self) -> bool:
         """Return whether the tension drone is actively playing."""
         return self._is_playing

@@ -22,11 +22,11 @@ Row validation:
 """
 
 import csv
+import logging
 import sys
 import time
-import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     import serial
@@ -56,6 +56,8 @@ FIELD_TYPES = {
 }
 N_FIELDS = len(FIELD_NAMES)
 
+logger = logging.getLogger(__name__)
+
 # Output includes unix_ts_ms inserted after timestamp_ms
 OUTPUT_FIELDNAMES = [
     "sample_idx", "timestamp_ms", "unix_ts_ms",
@@ -64,7 +66,7 @@ OUTPUT_FIELDNAMES = [
 
 
 def _setup_logging(out_dir: Path) -> None:
-    log_path = out_dir / f"serial_reader_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_path = out_dir / f"serial_reader_{datetime.now().astimezone().strftime('%Y%m%d_%H%M%S')}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s  %(levelname)s  %(message)s",
@@ -75,7 +77,7 @@ def _setup_logging(out_dir: Path) -> None:
     )
 
 
-def _validate_row(raw_line: str) -> dict | None:
+def _validate_row(raw_line: str) -> dict[str, int] | None:
     """
     Parse and validate one raw serial line.
     Returns a dict of typed field values, or None if invalid.
@@ -109,11 +111,11 @@ def read_serial(
     out_path.mkdir(parents=True, exist_ok=True)
     _setup_logging(out_path)
 
-    session_ts  = datetime.now().strftime("%Y%m%d_%H%M%S")
+    session_ts  = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
     csv_path    = out_path / f"recorded_{session_ts}.csv"
 
-    logging.info(f"Opening {port} at {baud} baud")
-    logging.info(f"Output -> {csv_path}")
+    logger.info(f"Opening {port} at {baud} baud")
+    logger.info(f"Output -> {csv_path}")
 
     total_rows    = 0
     rejected_rows = 0
@@ -128,13 +130,12 @@ def read_serial(
         writer = csv.DictWriter(fh, fieldnames=OUTPUT_FIELDNAMES)
         writer.writeheader()
 
-        logging.info("Recording started -- Ctrl+C to stop")
+        logger.info("Recording started -- Ctrl+C to stop")
 
         try:
             while True:
-                if duration is not None:
-                    if time.monotonic() - start_time >= duration:
-                        break
+                if duration is not None and time.monotonic() - start_time >= duration:
+                    break
 
                 raw = ser.readline()
                 if not raw:
@@ -150,7 +151,7 @@ def read_serial(
                 row = _validate_row(line)
                 if row is None:
                     rejected_rows += 1
-                    logging.warning(f"REJECTED malformed row [{rejected_rows}]: {line!r}")
+                    logger.warning(f"REJECTED malformed row [{rejected_rows}]: {line!r}")
                     continue
 
                 # --- sample_idx gap detection ---
@@ -159,7 +160,7 @@ def read_serial(
                     if diff != 1:
                         gap_events += 1
                         missed = diff - 1 if diff > 1 else "?"
-                        logging.warning(
+                        logger.warning(
                             f"GAP: sample_idx jumped {last_idx}->{row['sample_idx']} "
                             f"(gap_event #{gap_events}, ~{missed} missed sample(s))"
                         )
@@ -167,7 +168,7 @@ def read_serial(
 
                 # --- timestamp_ms monotonicity ---
                 if last_ts_ms is not None and row["timestamp_ms"] < last_ts_ms:
-                    logging.warning(
+                    logger.warning(
                         f"BACKWARDS timestamp: {last_ts_ms} -> {row['timestamp_ms']}"
                     )
                 last_ts_ms = row["timestamp_ms"]
@@ -181,20 +182,20 @@ def read_serial(
                 total_rows += 1
                 if total_rows % 1000 == 0:
                     elapsed = time.monotonic() - start_time
-                    logging.info(
+                    logger.info(
                         f"{total_rows} rows  |  {elapsed:.1f}s  |  "
                         f"{rejected_rows} rejected  |  {gap_events} gap events"
                     )
 
         except KeyboardInterrupt:
-            logging.info("Recording stopped by user")
+            logger.info("Recording stopped by user")
 
     elapsed = time.monotonic() - start_time
-    logging.info(
+    logger.info(
         f"\nSession complete: {total_rows} rows, {elapsed:.1f}s, "
         f"{rejected_rows} rejected, {gap_events} gap events"
     )
-    logging.info(f"Saved -> {csv_path}")
+    logger.info(f"Saved -> {csv_path}")
     return csv_path
 
 

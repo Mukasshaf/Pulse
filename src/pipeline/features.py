@@ -1,14 +1,16 @@
 
 
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import sys
-import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject, LABEL_NAMES
 from preprocess import preprocess_subject
+from wesad_loader import LABEL_NAMES, load_subject
 
 FEATURE_COLS = [
     "mean_hr", "rmssd", "sdnn", "pnn50",
@@ -17,7 +19,8 @@ FEATURE_COLS = [
 ]
 
 
-def _ppg_features(ibi_ms, ibi_idx, win_start, win_end, fs_bvp):
+def _ppg_features(ibi_ms: np.ndarray, ibi_idx: np.ndarray, win_start: int, win_end: int,
+                  fs_bvp: float) -> dict[str, float]:
     mask  = (ibi_idx >= win_start) & (ibi_idx < win_end)
     ibi_w = ibi_ms[mask]
 
@@ -35,7 +38,8 @@ def _ppg_features(ibi_ms, ibi_idx, win_start, win_end, fs_bvp):
             "sdnn": sdnn, "pnn50": pnn50}
 
 
-def _gsr_features(scr, scl, scr_peaks, win_start, win_end, fs_eda):
+def _gsr_features(scr: np.ndarray, scl: np.ndarray, scr_peaks: np.ndarray, win_start: int,
+                  win_end: int, fs_eda: float) -> dict[str, float]:
     scr_w = scr[win_start:win_end]
     scl_w = scl[win_start:win_end]
 
@@ -52,7 +56,7 @@ def _gsr_features(scr, scl, scr_peaks, win_start, win_end, fs_eda):
             "scl_mean": scl_mean}
 
 
-def _window_label(labels_bvp, win_start, win_end):
+def _window_label(labels_bvp: np.ndarray, win_start: int, win_end: int) -> int:
     seg   = labels_bvp[win_start:win_end]
     valid = seg[seg != 0]
     if len(valid) == 0:
@@ -65,7 +69,7 @@ def _window_label(labels_bvp, win_start, win_end):
     return int(majority)
 
 
-def _artifact_fraction(artifact_mask, win_start_s, win_end_s):
+def _artifact_fraction(artifact_mask: np.ndarray, win_start_s: float, win_end_s: float) -> float:
     i_start = int(win_start_s)
     i_end   = min(int(win_end_s), len(artifact_mask))
     if i_end <= i_start:
@@ -73,8 +77,8 @@ def _artifact_fraction(artifact_mask, win_start_s, win_end_s):
     return float(np.mean(artifact_mask[i_start:i_end]))
 
 
-def extract_window_features(preprocessed, window_s=60.0, stride_s=30.0,
-                            artifact_threshold=0.20):
+def extract_window_features(preprocessed: dict[str, Any], window_s: float = 60.0, stride_s: float = 30.0,
+                            artifact_threshold: float = 0.20) -> pd.DataFrame:
     sid    = preprocessed["sid"]
     fs_bvp = preprocessed["fs"]["bvp"]
     fs_eda = preprocessed["fs"]["eda"]
@@ -94,7 +98,7 @@ def extract_window_features(preprocessed, window_s=60.0, stride_s=30.0,
     stride_eda     = int(stride_s * fs_eda)
 
     total_samples = len(preprocessed["bvp_clean"])
-    records = []
+    records: list[dict[str, Any]] = []
 
     win_idx   = 0
     bvp_start = 0
@@ -155,21 +159,21 @@ def extract_window_features(preprocessed, window_s=60.0, stride_s=30.0,
     return df
 
 
-def save_features(df, sid, out_dir="outputs/features"):
+def save_features(df: pd.DataFrame, sid: int | str, out_dir: str = "outputs/features") -> None:
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     path = Path(out_dir) / f"S{sid}_features.csv"
     df.to_csv(path, index=False)
     print(f"  Features saved → {path}  ({len(df)} windows)")
 
 
-def load_features(sid, out_dir="outputs/features"):
+def load_features(sid: int | str, out_dir: str = "outputs/features") -> pd.DataFrame:
     path = Path(out_dir) / f"S{sid}_features.csv"
     if not path.exists():
         raise FileNotFoundError(f"Features not found: {path}")
     return pd.read_csv(path)
 
 
-def feature_summary(df):
+def feature_summary(df: pd.DataFrame) -> None:
     sid = df["sid"].iloc[0]
     print(f"\n{'='*55}")
     print(f"  Feature Summary — S{sid}")

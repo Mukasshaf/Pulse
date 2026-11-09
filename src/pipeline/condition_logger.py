@@ -22,10 +22,10 @@ Output CSV schema:
     condition, start_unix_ms, end_unix_ms
 """
 
-import time
 import csv
-import sys
 import os
+import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from condition_labels import CONDITION_DURATION_S, CONDITION_LABELS
@@ -75,7 +75,7 @@ def run_session(subject_id: str, output_path: str) -> None:
     with open(output_path, "w", newline="") as f:
         csv.writer(f).writerows(rows)
 
-    print(f"[condition_logger] Session complete.")
+    print("[condition_logger] Session complete.")
     print(f"[condition_logger] Condition log written -> {output_path}")
 
 

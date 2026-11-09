@@ -61,6 +61,7 @@ def test_button_flash_lifecycle() -> None:
 def test_radial_shatter_effect() -> None:
     """Verify 12-particle radial rectangular shatter dispersal and lifecycle."""
     import pygame
+
     from src.game.ui_effects import RadialShatterEffect
 
     shatter = RadialShatterEffect(num_particles=12, duration_ms=500)

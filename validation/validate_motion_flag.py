@@ -22,6 +22,7 @@ Detection logic (mu+2sigma pattern -- project standard):
 """
 
 import sys
+
 import numpy as np
 import pandas as pd
 
@@ -99,7 +100,7 @@ def run() -> dict:
 
 if __name__ == "__main__":
     print(f"\n{'='*55}")
-    print(f"  Task 3 -- Motion Artifact Flagging")
+    print("  Task 3 -- Motion Artifact Flagging")
     print(f"{'='*55}")
     result = run()
     for k, v in result.items():

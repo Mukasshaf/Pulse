@@ -1,179 +1,93 @@
-# Pulse: Gamified Physiological Activation Mapping System
+# Pulse: Gamified Stress Detection
 
-Engineering research prototype mapping autonomic stress activation across seven behavioral domains in young adults (15–25 years) using wearable PPG + GSR sensors integrated with a gamified simulation interface.
-
----
-
-## Goal
-
-Design and validate a domain-based interactive simulation framework that maps autonomic physiological responses (HRV + EDA) to structured behavioral contexts — without diagnosing or labeling individuals. Output is a domain-level activation map per subject, plus event-aligned physiological trigger flags during gamified scenarios.
+Engineering research prototype mapping autonomic stress activation across seven behavioral domains in young adults (15-25 years) using wearable PPG, GSR, and IMU sensors integrated with a custom gamified simulation interface.
 
 ---
 
-## Current Status
+## Project Overview
 
-- **Phase 1 (WESAD software pipeline)**: Complete. `wesad_loader.py` loads raw WESAD data. `preprocess.py` filters BVP and decomposes EDA into tonic (SCL) and phasic (SCR) components. `features.py` extracts a 9-feature vector over 60s windows. `normalize.py` applies within-subject z-score normalization. `classifier.py` trains a Random Forest with Leave-One-Subject-Out cross-validation. `threshold_detector.py` implements real-time non-ML event flagging.
-- **Phase 2 & Milestone M2 (Hardware Bring-Up)**: Complete. ESP32 acquisition rig verified (drop rate 0.010%, calibrated `ACC_THRESHOLD_HW = 8800.0`, valid pulse IBIs).
-- **Phase 4 (Gamification Engine)**: Complete. 60 FPS state machine in Pygame implementing 7 behavioral domains and 14 validated scenarios (15–25 age range) with score-free narrative consequence design and host-PC `unix_ts_ms` event logging.
+Design and validate a domain-based interactive simulation framework that maps autonomic physiological responses (HRV + EDA) to structured behavioral contexts without diagnosing or labeling individuals. The output is a domain-level activation radar chart per subject, driven by event-aligned physiological data captured during live gamified scenarios.
 
----
-
-## WESAD Benchmark Results
-
-Random Forest, binary classification (baseline vs stress), evaluated with Leave-One-Subject-Out cross-validation across all 15 subjects (807 windows total).
-
-| Metric | Value |
-|---|---|
-| Accuracy | 0.9591 |
-| F1-macro | 0.9503 |
-| Specificity | 0.9841 |
-| Sensitivity | 0.9004 |
+### Core System Features
+* **Hardware-Software Integration:** A Python based gamification engine that synchronizes in-game behavioral events with live wearable biosensor streams to accurately map stress responses to specific cognitive scenarios.
+* **Signal Processing & Cleaning:** The pipeline processes raw biosignals using Butterworth filters and NeuroKit2 EDA decomposition, implementing a strict IMU-based motion gate to automatically reject physical artifacts.
+* **Machine Learning & Generalization:** Features a subject-independent Random Forest model validated against both benchmark and real world datasets, generalizing from 95.9% accuracy on the WESAD benchmark to an 86% accuracy (AUC 0.902) on live custom hardware testing.
 
 ---
 
 ## Pipeline Architecture
 
-![Architectural Diagram](docs/Pulse_Architecture_Diagram.png)
+![Pulse Architecture Diagram](docs/specs/Pulse_Architecture_Diagram.png)
 
 ---
 
-## Repository Structure
+## Documentation Directory
 
-```
-Pulse/
-├── .gitignore                            # Unified ignore rules (caches, data/, outputs/, venvs)
-├── .python-version                       # Python runtime specification (3.13)
-├── pyproject.toml                        # Merged dependencies (numpy, scipy, scikit-learn, neurokit2, pygame, etc.)
-├── uv.lock                               # Deterministic dependency lockfile
-├── README.md                             # Project overview (both tracks documented)
-├── CLAUDE.md / GEMINI.md                 # AI agent rules & architecture contracts
-│
-├── assets/                               # [Ayush] Static media assets
-│   └── audio/
-│       └── tension_drone.wav             # 60–80 Hz low-frequency loop drone
-│
-├── data/                                 # Shared data root (gitignored)
-│   ├── WESAD/                            # [Mukasshaf] Benchmark dataset (S2–S17)
-│   ├── hardware/                         # [Mukasshaf] ESP32 sensor captures
-│   │   ├── raw/                          # Raw CSVs from serial_reader.py
-│   │   └── labeled/                      # Protocol labeled CSVs
-│   └── game_logs/                        # [Ayush] Session event logs
-│
-├── docs/                                 # Unified documentation
-│   ├── specs/                            # [Ayush] Gamification technical specifications
-│   │   ├── ARCHITECTURE_SPEC.md
-│   │   ├── CODING_STANDARDS_AND_RULES.md
-│   │   ├── DATA_MODELS_AND_CONTRACTS.md
-│   │   ├── domain_implementation_strategy.md
-│   │   ├── IMPLEMENTATION_PLAN.md
-│   │   └── TEST_CRITERIA_AND_EDGE_CASES.md
-│   ├── guides/                           # [Mukasshaf] Hardware & validation guides
-│   │   ├── PULSE_Hardware_Setup.md
-│   │   ├── PULSE_M2_Validation_Guide.md
-│   │   ├── PULSE_Phase3_Pipeline_Additions.md
-│   │   └── PULSE_Pipeline_Change_Plan.md
-│   └── interface/
-│       └── PULSE_Gamification_Interface_Spec.md  # Inter-track contract
-│
-├── firmware/                             # [Mukasshaf] Microcontroller firmware
-│   └── firmware.ino                      # ESP32 66.67 Hz sampling sketch
-│
-├── notebooks/                            # Exploratory Jupyter notebooks
-│
-├── outputs/                              # Generated run artifacts (gitignored)
-│   ├── features/                         # Extracted 9-feature CSVs
-│   ├── models/                           # Trained estimators (rf_loso.pkl, hw_classifier.pkl)
-│   ├── plots/                            # Preprocessing & confusion matrix plots
-│   └── results/                          # Fold results, transfer gap, activation maps
-│
-├── src/                                  # Core application source
-│   ├── __init__.py
-│   ├── domains.py                        # [SHARED] Single source of truth for 7 canonical domain IDs
-│   ├── align_signals.py                  # [SHARED] Join script: hardware sensor CSV ↔ game events.csv
-│   │
-│   ├── pipeline/                         # [Mukasshaf] ML & Signal Processing Pipeline
-│   │   ├── __init__.py
-│   │   ├── wesad_loader.py               # WESAD pickle parser (Phase 1)
-│   │   ├── hardware_loader.py            # Hardware CSV parser (HW_FS = 66.67 Hz)
-│   │   ├── preprocess.py                 # BVP BPF, peak detect, EMD/SCL, motion flag (8800.0)
-│   │   ├── features.py                   # 9 locked features (60s window, 30s stride)
-│   │   ├── normalize.py                  # Within-subject z-score normalization
-│   │   ├── classifier.py                 # Tuned Random Forest (LOSO-CV)
-│   │   ├── threshold_detector.py         # Layer 1 deterministic μ+2σ rule
-│   │   ├── condition_labels.py           # Protocol labels (baseline/arithmetic/stroop)
-│   │   ├── condition_logger.py           # Session timer cue tool
-│   │   ├── eval_zero_shot.py             # Zero-shot WESAD-to-HW evaluator
-│   │   ├── train_hw_loso.py              # HW-trained LOSO classifier
-│   │   ├── go_nogo_check.py              # M3 gate verification (F1-macro ≥ 0.65)
-│   │   ├── batch_comparison.py           # Feature importance & comparison utility
-│   │   └── run_pipeline.py               # Multi-subject batch pipeline runner
-│   │
-│   ├── hardware/                         # [Mukasshaf] Serial acquisition tools
-│   │   ├── __init__.py
-│   │   └── serial_reader.py              # Live COM reader, validates rows, injects unix_ts_ms
-│   │
-│   └── game/                             # [Ayush] Gamification Engine (Pygame)
-│       ├── __init__.py
-│       ├── main.py                       # Game CLI entry point (--subject, etc.)
-│       ├── engine.py                     # Master GameEngine state machine & 60 FPS loop
-│       ├── constants.py                  # Enums (EngineState, EventType), colors, timers
-│       ├── event_logger.py               # 9-column CSV logger (with host unix_ts_ms)
-│       ├── scenarios.py                  # 14 scenarios registry (2 per domain)
-│       ├── scenario_logic.py             # Arithmetic, BART pumps, reward accumulators
-│       ├── ui.py                         # Pygame rendering (text, prompt boxes, timer bars)
-│       ├── ui_effects.py                 # Visual jitter (≤3px), screen vibration, color lerp
-│       ├── audio.py                      # Audio player for recovery & tension drones
-│       └── bridge_interface.py           # BridgeInterface & StubBridge abstraction
-│
-├── tests/                                # Automated test suite
-│   ├── __init__.py
-│   ├── conftest.py                       # Shared test fixtures (mock screen, session configs)
-│   │
-│   ├── game/                             # [Ayush] 41 Gamification engine tests
-│   │   ├── test_audio.py
-│   │   ├── test_bridge_interface.py
-│   │   ├── test_constants.py
-│   │   ├── test_engine.py
-│   │   ├── test_event_logger.py
-│   │   ├── test_scenario_logic.py
-│   │   ├── test_scenarios.py
-│   │   └── test_ui_effects.py
-│   │
-│   └── pipeline/                         # [Mukasshaf] ML & Signal tests
-│       ├── test_loaders.py
-│       ├── test_preprocess.py
-│       └── test_features.py
-│
-└── validation/                           # [Mukasshaf] Hardware bring-up validation
-    ├── run_m2_validation.py
-    ├── validate_peak_detection.py
-    ├── validate_gsr_stability.py
-    ├── validate_motion_flag.py
-    ├── validate_drop_rate.py
-    └── reports/
-        ├── M2_Full_Validation_Report.md
-        └── M2_Validation_Summary.md
-```
+For deep dives into the project's design, hardware setup, and research outcomes, please refer to the following documentation:
+
+**System & Technical Specs:**
+* [System Architecture](docs\specs\ARCHITECTURE.md) - High-level system design and data flow.
+* [Gamification Interface Spec](docs/specs/INTERFACE_SPEC.md) - Details on the 7 cognitive domains and the 14 simulated scenarios.
+* [Master System Reference](docs/specs/SYSTEM_REFERENCE.md) - Consolidated hardware definitions, constants, and project glossary.
+
+
+---
+
+## Current Status: Live Pilot Study (Complete)
+
+- **End-to-End Orchestration:** The entire pipeline is now fully automated via a single CLI tool (`run_session.py`). It manages serial connection checks, background data capture, Pygame launch, timestamp alignment, feature extraction, and instantaneous radar chart generation.
+- **Pilot Expansion:** Conducted a Phase 3 live human pilot study (N=7 subjects). 
+- **Robustness Validated:** Implemented strict baseline normalization guards (`n ≥ 4` valid 30s windows required). The IMU motion-gating successfully caught and rejected excessive fidgeting artifacts during baseline rests, demonstrating real-world noise resilience.
 
 ---
 
 ## Quickstart
 
 ### Prerequisites
-- Python 3.11+ (Python 3.13 recommended)
-- Package manager: [`uv`](https://docs.astral.sh/uv/)
+* Python 3.11+ (Python 3.13 recommended)
+* Package manager: [`uv`](https://docs.astral.sh/uv/)
 
 ### Installation
 ```bash
+# Install all dependencies and setup the virtual environment
 uv sync
 ```
 
-### Running Tests
+### Running a Live Subject Session
+To launch a complete recording session (checks sensors, starts background recording, runs the game, and generates the final radar chart reports):
 ```bash
-uv run pytest
+uv run python run_session.py --subject S01
 ```
+*(Use `--fast-baseline` for testing purposes to skip the 3-minute resting baseline).*
 
-### Running the Gamification Engine
-```bash
-uv run python -m src.game.main --subject S01 --fast-baseline
+---
+
+## Repository Structure
+
+```text
+Pulse/
+├── assets/                 # Static media assets (audio/visuals)
+├── docs/                   # Centralized documentation
+│   ├── reports/            # Pilot results and comprehensive research reports
+│   ├── specs/              # Interface, architecture specs, and system references
+│   └── CHANGELOG.md        # Detailed progress and update tracker
+│
+├── firmware/               # Microcontroller C++ code
+│   └── firmware.ino        # ESP32 66.67 Hz sampling sketch (GSR, PPG, IMU)
+│
+├── scripts/                # Execution & Utility scripts
+│   ├── analysis/           # Radar plotting, feature extraction, ROC curves
+│   ├── hardware_checks/    # Hardware go/no-go verification scripts
+│   └── training/           # ML training and zero-shot evaluation scripts
+│
+├── src/                    # Core Application Code
+│   ├── game/               # Gamification Engine (Pygame state machine)
+│   ├── hardware/           # Serial acquisition and live logging
+│   ├── pipeline/           # ML, signal processing, filters, and feature extraction
+│   └── align_signals.py    # Merges hardware CSVs with game event logs
+│
+├── tests/                  # Pytest automated test suite
+├── .gitignore              # Ignores generated outputs/, data/, and .venv/
+├── pyproject.toml          # Project metadata and dependencies
+└── run_session.py          # Primary CLI Orchestrator
 ```

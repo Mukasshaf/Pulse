@@ -3,6 +3,12 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from src import domains as _domains
+
+# Canonical domain identifiers live in src/domains.py; bound here so engine modules share one import site
+DomainID = _domains.DomainID
+CANONICAL_DOMAINS: list[str] = _domains.CANONICAL_DOMAINS
+
 
 class EngineState(StrEnum):
     """Lifecycle states of the Pulse scenario state machine."""
@@ -55,8 +61,6 @@ class ScenarioType(StrEnum):
     REWARD_ACCUMULATOR = "REWARD_ACCUMULATOR"
     DELAY_WAIT = "DELAY_WAIT"
 
-from src.domains import DomainID, CANONICAL_DOMAINS
-
 
 # --- Display ---
 SCREEN_WIDTH: int = 1280
@@ -67,9 +71,14 @@ FPS: int = 60
 BASELINE_DURATION_S: int = 180
 FAST_BASELINE_DURATION_S: int = 10
 INTRA_DOMAIN_REST_S: int = 15
-INTER_DOMAIN_REST_S: int = 30
+INTER_DOMAIN_REST_S: int = 30  # Default wash-out between domains (ADR-B2)
+INTER_DOMAIN_REST_EXTENDED_S: int = 60  # --extended-rest: full wash-out for clinical protocols
 DEFAULT_CONSEQUENCE_DURATION_S: int = 4
-DEFAULT_PRIMING_DURATION_S: int = 20
+DEFAULT_PRIMING_DURATION_S: int = 20  # Locked for all 14 scenarios (ADR-B3): immersive read-through, not a 5-10 s flash
+DEFAULT_DECISION_DURATION_S: int = 45  # Locked decision window for every scenario except the MIST run
+MIST_DECISION_DURATION_S: int = 40  # MIST arithmetic run (academic_pressure_a)
+MIN_PRIMING_DURATION_S: int = 8  # Briefing cannot be skipped before it can plausibly be read
+MIN_ACTIVE_EPOCH_S: int = 60  # PRIMING + DECISION + FEEDBACK must span one 60 s HRV feature window
 
 # --- Audio ---
 DRONE_VOLUME: float = 0.30
@@ -83,7 +92,8 @@ JITTER_MAX_HZ: float = 2.0
 BUTTON_FLASH_DURATION_MS: int = 200
 TIMER_BAR_AMBER_FRACTION: float = 0.333
 TIMER_BAR_RED_FRACTION: float = 0.10
-VIBRATION_MAX_PX: int = 3
+VIBRATION_MAX_PX: int = 2
+VIBRATION_MAX_HZ: float = 2.0
 
 # --- Deception Metric & Composure Gating ---
 DECEPTION_THRESHOLD_SIGMA: float = 1.5
@@ -101,17 +111,36 @@ PENDULUM_SWING_MAX_HZ: float = 1.0
 # --- Clock Monitoring ---
 CLOCK_JUMP_WARNING_THRESHOLD_MS: int = 50
 
+# --- Sensor Bridge (ESP32 serial stream) ---
+BRIDGE_BAUD_CANDIDATES: tuple[int, ...] = (115200,)  # Firmware is fixed at 115200; extend only if it changes
+BRIDGE_PROBE_TIMEOUT_S: float = 3.0  # Covers an ESP32 auto-reset on port open
+BRIDGE_PROBE_VALID_ROWS: int = 3  # Parseable rows required before a port is accepted
+BRIDGE_VARIANCE_WINDOW_MS: int = 1000  # Rolling window for the accelerometer-magnitude variance
+BRIDGE_MIN_WINDOW_SAMPLES: int = 20  # Below this the variance is not reported (about 0.3 s at 66.67 Hz)
+BRIDGE_STALE_AFTER_MS: int = 1500  # No sample for this long means telemetry is lost
+
 # --- MIST ---
 MIST_PEER_ADVANTAGE_PCT: int = 15
 MIST_WRONG_FLASH_COLOR: tuple[int, int, int] = (218, 41, 28)  # Rosso Corsa
 MIST_PROBLEM_COUNT: int = 4
+MIST_RUNTIME_PROBLEM_COUNT: int = 60  # Enough items that the window, not the item count, ends the task
+MIST_ITEM_LIMIT_START_MS: int = 8000  # First per-item countdown
+MIST_ITEM_LIMIT_MIN_MS: int = 3000  # Tightest the adaptive countdown may become
+MIST_ITEM_LIMIT_MAX_MS: int = 12000  # Loosest the adaptive countdown may become
+MIST_ADAPT_STEP: float = 0.10  # Countdown tightens/eases by this fraction per adaptation
+MIST_ADAPT_STREAK: int = 2  # Consecutive correct (or incorrect) answers that trigger an adaptation
+MIST_ITEM_BAR_RED_FRACTION: float = 0.25  # Item countdown bar turns Rosso below this remaining fraction
 
 # --- BART ---
+# Burst hazard on pump k is BASE + INCREMENT * (k - 1): 2% on the first pump rising to 41% on the
+# fourteenth, with the fifteenth certain. Expected safe pumps are about 6, so risk escalates across
+# the whole range instead of ending the task within three presses.
 BART_INITIAL_VALUE: int = 100
 BART_INCREMENT: int = 50
-BART_BURST_PROB_BASE: float = 0.05
-BART_BURST_PROB_INCREMENT: float = 0.08
+BART_BURST_PROB_BASE: float = 0.02
+BART_BURST_PROB_INCREMENT: float = 0.03
 BART_MAX_PUMPS: int = 15
+BART_PUMP_COOLDOWN_MS: int = 1500  # Each pump is a paced, deliberate decision (no key mashing)
 
 # --- Reward Accumulator ---
 REWARD_INITIAL_VALUE: int = 10
@@ -119,24 +148,28 @@ REWARD_GROWTH_RATE: float = 1.15
 REWARD_COLLAPSE_RANGE: tuple[int, int] = (20, 40)
 REWARD_MAX_DISPLAY: int = 9999
 
-# --- Colors (RGB) --- Ferrari Luxury-Automotive Editorial System
-COLOR_BG: tuple[int, int, int] = (24, 24, 24)                # #181818 Near-black canvas
+# --- Colors (RGB) --- Ferrari Luxury-Automotive Editorial System (values from DESIGN-ferrari.md)
+# Palette rule (ADR-B5): the six chromatic tokens below are the only chromatic colours the UI may
+# draw. Every other surface, border, and label is a neutral grey (r == g == b), written either as a
+# token or as a literal. Rosso Corsa marks stress triggers, danger states, and timer expiry only;
+# it never marks a key prompt or the participant's own selection.
+COLOR_BG: tuple[int, int, int] = (24, 24, 24)                # #181818 Near-black canvas (never pure black)
 COLOR_CARD_BG: tuple[int, int, int] = (48, 48, 48)           # #303030 Canvas elevated / surface-card
 COLOR_TEXT_PRIMARY: tuple[int, int, int] = (255, 255, 255)   # #ffffff Ink / Display
-COLOR_TEXT_SECONDARY: tuple[int, int, int] = (150, 150, 150) # #969696 Body
+COLOR_TEXT_SECONDARY: tuple[int, int, int] = (150, 150, 150) # #969696 Body / Grigio borders
 COLOR_TEXT_MUTED: tuple[int, int, int] = (102, 102, 102)     # #666666 Muted caption
 COLOR_PRIMARY_ROSSO: tuple[int, int, int] = (218, 41, 28)    # #da291c Rosso Corsa
-COLOR_PRIMARY_ACTIVE: tuple[int, int, int] = (176, 30, 10)   # #b01e0a Rosso Corsa active
+COLOR_PRIMARY_ACTIVE: tuple[int, int, int] = (176, 30, 10)   # #b01e0a Rosso Corsa active (dimmed alert)
+COLOR_SEMANTIC_WARNING: tuple[int, int, int] = (241, 58, 44) # #f13a2c Small alert text on dark surfaces
 COLOR_ACCENT_CYAN: tuple[int, int, int] = (76, 152, 185)     # #4c98b9 Semantic info telemetry
 COLOR_ACCENT_YELLOW: tuple[int, int, int] = (246, 229, 0)    # #f6e500 Ferrari yellow accent
 COLOR_TIMER_GREEN: tuple[int, int, int] = (3, 144, 74)       # #03904a Semantic success
-COLOR_TIMER_AMBER: tuple[int, int, int] = (246, 229, 0)      # #f6e500 Semantic warning / yellow
+COLOR_TIMER_AMBER: tuple[int, int, int] = (246, 229, 0)      # #f6e500 Caution / telemetry standby
 COLOR_TIMER_RED: tuple[int, int, int] = (218, 41, 28)        # #da291c Rosso Corsa / critical
 COLOR_REST_GRADIENT_TOP: tuple[int, int, int] = (24, 24, 24)
 COLOR_REST_GRADIENT_BOTTOM: tuple[int, int, int] = (14, 14, 14)
 COLOR_HAIRLINE: tuple[int, int, int] = (48, 48, 48)          # #303030 Hairline divider
 COLOR_HAIRLINE_SUBTLE: tuple[int, int, int] = (58, 58, 58)   # Subtle contrast divider
-COLOR_ACCENT_INDIGO: tuple[int, int, int] = (218, 41, 28)    # Alias to Rosso Corsa for backwards compatibility
 
 # --- Subject ID Validation ---
 SUBJECT_ID_PATTERN: str = r"^S\d{2,3}$"
@@ -201,6 +234,15 @@ class AudioLoadError(PulseEngineError):
         """Store path and initialize message."""
         super().__init__(f"Failed to load audio asset from: {path}")
         self.path: str = path
+
+
+class BridgeUnavailableError(PulseEngineError):
+    """Raised when a sensor bridge was explicitly required but cannot be established."""
+
+    def __init__(self, detail: str) -> None:
+        """Store detail and initialize message."""
+        super().__init__(f"Sensor bridge unavailable: {detail}")
+        self.detail: str = detail
 
 
 class LoggerIOError(PulseEngineError):

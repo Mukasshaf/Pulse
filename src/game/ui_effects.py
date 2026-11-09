@@ -9,6 +9,8 @@ import pygame
 from src.game.constants import (
     BUTTON_FLASH_DURATION_MS,
     COLOR_ACCENT_CYAN,
+    COLOR_PRIMARY_ACTIVE,
+    COLOR_TEXT_PRIMARY,
     COLOR_TIMER_AMBER,
     COLOR_TIMER_GREEN,
     COLOR_TIMER_RED,
@@ -16,8 +18,17 @@ from src.game.constants import (
     JITTER_MAX_PX,
     TIMER_BAR_AMBER_FRACTION,
     TIMER_BAR_RED_FRACTION,
+    VIBRATION_MAX_HZ,
     VIBRATION_MAX_PX,
 )
+
+
+def _clamp_radial(fx: float, fy: float, max_px: int) -> tuple[int, int]:
+    """Bound an offset by vector magnitude (not per axis), truncating toward zero."""
+    mag = math.hypot(fx, fy)
+    if mag > max_px > 0:
+        fx, fy = fx * max_px / mag, fy * max_px / mag
+    return (int(fx), int(fy))
 
 
 @dataclass
@@ -39,14 +50,11 @@ class TextJitter:
         self.max_hz: float = max_hz
 
     def get_offset(self, elapsed_ms: int) -> tuple[int, int]:
-        """Compute (dx, dy) offset within [-max_px, max_px]."""
+        """Compute (dx, dy) with displacement <= max_px and both axes at or below max_hz."""
         sec = elapsed_ms / 1000.0
         angle = 2.0 * math.pi * self.max_hz * sec
-        dx = int(round(math.sin(angle) * self.max_px))
-        dy = int(round(math.cos(angle * 1.5) * self.max_px))
-        dx = max(-self.max_px, min(self.max_px, dx))
-        dy = max(-self.max_px, min(self.max_px, dy))
-        return (dx, dy)
+        # Second axis runs at 0.75x so the fastest component is max_hz itself
+        return _clamp_radial(math.sin(angle) * self.max_px, math.cos(angle * 0.75) * self.max_px, self.max_px)
 
 
 class TimerBarColorTransition:
@@ -88,13 +96,9 @@ class ScreenVibration:
         """Compute (dx, dy) vibration offset scaled by intensity fraction."""
         scaled_intensity = max(0.0, min(1.0, intensity))
         sec = elapsed_ms / 1000.0
-        angle = 2.0 * math.pi * 2.0 * sec
+        angle = 2.0 * math.pi * VIBRATION_MAX_HZ * sec
         amp = self.max_px * scaled_intensity
-        dx = int(round(math.sin(angle * 1.3) * amp))
-        dy = int(round(math.cos(angle * 0.9) * amp))
-        dx = max(-self.max_px, min(self.max_px, dx))
-        dy = max(-self.max_px, min(self.max_px, dy))
-        return (dx, dy)
+        return _clamp_radial(math.sin(angle) * amp, math.cos(angle * 0.7) * amp, self.max_px)
 
 
 class ButtonFlash:
@@ -152,9 +156,9 @@ class RadialShatterEffect:
         colors = [
             COLOR_ACCENT_CYAN,
             COLOR_TIMER_AMBER,
-            (255, 130, 80),
-            (70, 75, 95),
-            (220, 230, 255),
+            COLOR_PRIMARY_ACTIVE,
+            (76, 76, 76),
+            COLOR_TEXT_PRIMARY,
             COLOR_TIMER_RED,
         ]
         for i in range(self.num_particles):
@@ -204,4 +208,4 @@ class RadialShatterEffect:
                 w = max(2, int(p.width * decay))
                 h = max(2, int(p.height * decay))
                 rect = pygame.Rect(int(p.x - w // 2), int(p.y - h // 2), w, h)
-                pygame.draw.rect(screen, p.color, rect, border_radius=1)
+                pygame.draw.rect(screen, p.color, rect, border_radius=0)

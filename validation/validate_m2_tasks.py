@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 def validate_task3(file_path):
     print(f"--- Task 3: Motion Artifact Flagging ({file_path}) ---")

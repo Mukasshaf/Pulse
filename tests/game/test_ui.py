@@ -349,7 +349,7 @@ def test_social_evaluation_skins(screen: pygame.Surface, domain_registry: list[D
     renderer.draw_decision(scen_b, 15.0, 1, effects, None, None, None, 0.35)
 
     # Verify draw_feedback with Domain 7 consequence text
-    renderer.draw_feedback("The panel has recorded your response. Composure score: evaluated.", 1.0)
+    renderer.draw_feedback("The panel has recorded your response. Composure analysis: recorded.", 1.0)
 
 
 

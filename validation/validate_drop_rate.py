@@ -9,6 +9,7 @@ Acceptance: drop_rate < 5%
 """
 
 import sys
+
 import numpy as np
 import pandas as pd
 
@@ -55,7 +56,7 @@ def run() -> dict:
 
 if __name__ == "__main__":
     print(f"\n{'='*55}")
-    print(f"  Task 4 -- Drop Rate Validation")
+    print("  Task 4 -- Drop Rate Validation")
     print(f"{'='*55}")
     result = run()
     for k, v in result.items():

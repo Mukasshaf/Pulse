@@ -12,9 +12,10 @@ Acceptance criteria:
 """
 
 import sys
+
+import neurokit2 as nk
 import numpy as np
 import pandas as pd
-import neurokit2 as nk
 
 FS  = 1000.0 / 15.0   # 66.67 Hz -- actual hardware rate
 CSV = "../data/hardware/raw/M2_tests/recorded_data_35s.csv"
@@ -64,8 +65,8 @@ def run() -> dict:
         "fs_hz":           round(FS, 4),
         "duration_s":      round(duration_s, 3),
         "total_samples":   len(raw),
-        "peak_count":      int(len(peak_idx)),
-        "ibi_count":       int(len(ibi_ms)),
+        "peak_count":      len(peak_idx),
+        "ibi_count":       len(ibi_ms),
         "ibi_min_ms":      round(float(ibi_ms.min()), 1),
         "ibi_max_ms":      round(float(ibi_ms.max()), 1),
         "ibi_mean_ms":     round(float(np.mean(ibi_ms)), 1),
@@ -81,7 +82,7 @@ def run() -> dict:
 
 if __name__ == "__main__":
     print(f"\n{'='*55}")
-    print(f"  Task 1 -- Peak Detection Validation")
+    print("  Task 1 -- Peak Detection Validation")
     print(f"{'='*55}")
     result = run()
     for k, v in result.items():

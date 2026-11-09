@@ -1,29 +1,34 @@
-import numpy as np
-import pandas as pd
 import json
+import os
 import pickle
 import sys
-import os
 from pathlib import Path
+from typing import Any
 
+import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import (
-    LeaveOneGroupOut, StratifiedKFold, GridSearchCV, cross_val_predict
-)
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
 )
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import (
+    GridSearchCV,
+    LeaveOneGroupOut,
+    StratifiedKFold,
+    cross_val_predict,
+)
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from wesad_loader import load_subject, LABEL_NAMES
-from preprocess import preprocess_subject
 from features import extract_window_features
 from normalize import normalize_subject
-
+from preprocess import preprocess_subject
+from wesad_loader import load_subject
 
 FEATURE_COLS = [
         "mean_hr", "rmssd", "sdnn", "pnn50",
@@ -49,8 +54,10 @@ RF_GRID = {
 # Metrics
 
 def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray,
-                    labels: list = [1, 2]) -> dict:
-   
+                    labels: list[int] | None = None) -> dict[str, Any]:
+    if labels is None:
+        labels = [1, 2]
+
     acc  = accuracy_score(y_true, y_pred)
     prec = precision_score(y_true, y_pred, average="macro", zero_division=0)
     rec  = recall_score(y_true, y_pred, average="macro", zero_division=0)
@@ -97,7 +104,7 @@ def grid_search(X: np.ndarray, y: np.ndarray,
 # LOSO training
 
 def train_loso(subject_dfs: list[pd.DataFrame],
-               run_grid_search: bool = True) -> dict:
+               run_grid_search: bool = True) -> dict[str, Any]:
   
     df_all = pd.concat(subject_dfs, ignore_index=True)
     df_all = df_all[df_all["label"].isin([1, 2])].copy()
@@ -172,7 +179,7 @@ def train_loso(subject_dfs: list[pd.DataFrame],
 #  Single-subject fallback
 
 def train_single_subject(df_norm: pd.DataFrame,
-                         run_grid_search: bool = True) -> dict:
+                         run_grid_search: bool = True) -> dict[str, Any]:
     
     sid = df_norm["sid"].iloc[0]
     df  = df_norm[df_norm["label"].isin([1, 2])].copy()
@@ -217,7 +224,6 @@ def train_single_subject(df_norm: pd.DataFrame,
 
 def compare_models(df_norm: pd.DataFrame) -> pd.DataFrame:
    
-    sid = df_norm["sid"].iloc[0]
     df  = df_norm[df_norm["label"].isin([1, 2])].copy()
     X   = df[FEATURE_COLS].values
     y   = df["label"].values
@@ -250,7 +256,7 @@ def compare_models(df_norm: pd.DataFrame) -> pd.DataFrame:
 
 # Plots
 
-def plot_results(results: dict,
+def plot_results(results: dict[str, Any],
                  out_dir: str = "outputs/plots") -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -265,11 +271,11 @@ def plot_results(results: dict,
     values     = list(importance.values())
     sorted_idx = np.argsort(values)[::-1]
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    _, ax = plt.subplots(figsize=(10, 5))
     colors = ["#2563EB" if i == 0 else "#93C5FD" for i in range(len(features))]
-    bars   = ax.bar(range(len(features)),
-                    [values[i] for i in sorted_idx],
-                    color=colors)
+    ax.bar(range(len(features)),
+           [values[i] for i in sorted_idx],
+           color=colors)
     ax.set_xticks(range(len(features)))
     ax.set_xticklabels([features[i] for i in sorted_idx], rotation=35, ha="right")
     ax.set_ylabel("Gini Importance")
@@ -283,7 +289,7 @@ def plot_results(results: dict,
     #Confusion matrix
     cm = np.array(results.get("aggregate", results.get("metrics", {}))
                   .get("confusion_matrix", [[0, 0], [0, 0]]))
-    fig, ax = plt.subplots(figsize=(5, 4))
+    _, ax = plt.subplots(figsize=(5, 4))
     im = ax.imshow(cm, cmap="Blues")
     ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
     ax.set_xticklabels(["Pred Baseline", "Pred Stress"])
@@ -302,14 +308,14 @@ def plot_results(results: dict,
 
 #  Save / load model
 
-def save_model(clf, path: str = "outputs/models/classifier.pkl") -> None:
+def save_model(clf: Any, path: str = "outputs/models/classifier.pkl") -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as f:
         pickle.dump(clf, f)
     print(f"  Model saved → {path}")
 
 
-def load_model(path: str = "outputs/models/classifier.pkl"):
+def load_model(path: str = "outputs/models/classifier.pkl") -> Any:
     with open(path, "rb") as f:
         return pickle.load(f)
 
