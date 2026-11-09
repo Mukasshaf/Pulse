@@ -319,7 +319,7 @@ def main() -> None:
     parser.add_argument("--port",          default=DEFAULT_PORT, help="Serial port")
     parser.add_argument("--baud",          default=DEFAULT_BAUD, type=int)
     parser.add_argument("--no-check",      action="store_true",
-                        help="Skip pre-session sensor quality check")
+                        help="Skip pre-session sensor quality check").
     parser.add_argument("--fast-baseline", action="store_true",
                         help="Reduce baseline calibration to 10s (testing only)")
     parser.add_argument("--no-fullscreen", action="store_true",
